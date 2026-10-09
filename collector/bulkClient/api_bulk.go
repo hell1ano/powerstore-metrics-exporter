@@ -20,12 +20,10 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"crypto/tls"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	"github.com/gocarina/gocsv"
 	"github.com/tidwall/gjson"
 	"io"
 	"net"
@@ -178,112 +176,4 @@ func (bc *BulkClient) ReadCsvData(moduleType string) (string, error) {
 		return decodeCSV(modelFilename, tr)
 	}
 	return "", errors.New("get data empty")
-}
-
-// decodeCSV validates numeric fields using the same models used for exposition.
-func decodeCSV(modelFilename string, reader io.Reader) (string, error) {
-	switch modelFilename {
-	case "performance_metrics_by_appliance.csv":
-		var records []*PerformanceMetricsByAppliance
-		if err := gocsv.Unmarshal(reader, &records); err != nil {
-			return "", errors.New("error parsing csv file: " + err.Error())
-		}
-		recordsJson, err := json.Marshal(records)
-		if err != nil {
-			return "", errors.New("error json marshal: " + err.Error())
-		}
-		return string(recordsJson), nil
-	case "performance_metrics_by_fe_eth_port.csv":
-		var records []*PerformanceMetricsByFeEthPort
-		if err := gocsv.Unmarshal(reader, &records); err != nil {
-			return "", errors.New("error parsing csv file: " + err.Error())
-		}
-		recordsJson, err := json.Marshal(records)
-		if err != nil {
-			return "", errors.New("error json marshal: " + err.Error())
-		}
-		return string(recordsJson), nil
-	case "performance_metrics_by_fe_fc_port.csv":
-		var records []*PerformanceMetricsByFeFcPort
-		if err := gocsv.Unmarshal(reader, &records); err != nil {
-			return "", errors.New("error parsing csv file: " + err.Error())
-		}
-		recordsJson, err := json.Marshal(records)
-		if err != nil {
-			return "", errors.New("error json marshal: " + err.Error())
-		}
-		return string(recordsJson), nil
-	case "performance_metrics_by_file_system.csv":
-		var records []*PerformanceMetricsByFileSystem
-		if err := gocsv.Unmarshal(reader, &records); err != nil {
-			return "", errors.New("error parsing csv file: " + err.Error())
-		}
-		recordsJson, err := json.Marshal(records)
-		if err != nil {
-			return "", errors.New("error json marshal: " + err.Error())
-		}
-		return string(recordsJson), nil
-	case "performance_metrics_by_nas_server.csv":
-		var records []*PerformanceMetricsByNasServer
-		if err := gocsv.Unmarshal(reader, &records); err != nil {
-			return "", errors.New("error parsing csv file: " + err.Error())
-		}
-		recordsJson, err := json.Marshal(records)
-		if err != nil {
-			return "", errors.New("error json marshal: " + err.Error())
-		}
-		return string(recordsJson), nil
-	case "performance_metrics_by_volume.csv":
-		var records []*PerformanceMetricsByVolume
-		if err := gocsv.Unmarshal(reader, &records); err != nil {
-			return "", errors.New("error parsing csv file: " + err.Error())
-		}
-		recordsJson, err := json.Marshal(records)
-		if err != nil {
-			return "", errors.New("error json marshal: " + err.Error())
-		}
-		return string(recordsJson), nil
-	case "performance_metrics_by_vg.csv":
-		var records []*PerformanceMetricsByVg
-		if err := gocsv.Unmarshal(reader, &records); err != nil {
-			return "", errors.New("error parsing csv file: " + err.Error())
-		}
-		recordsJson, err := json.Marshal(records)
-		if err != nil {
-			return "", errors.New("error json marshal: " + err.Error())
-		}
-		return string(recordsJson), nil
-	case "space_metrics_by_appliance.csv":
-		var records []*SpaceMetricsByAppliance
-		if err := gocsv.Unmarshal(reader, &records); err != nil {
-			return "", errors.New("error parsing csv file: " + err.Error())
-		}
-		recordsJson, err := json.Marshal(records)
-		if err != nil {
-			return "", errors.New("error json marshal: " + err.Error())
-		}
-		return string(recordsJson), nil
-	case "space_metrics_by_file_system.csv":
-		var records []*SpaceMetricsByFilesystem
-		if err := gocsv.Unmarshal(reader, &records); err != nil {
-			return "", errors.New("error parsing csv file: " + err.Error())
-		}
-		recordsJson, err := json.Marshal(records)
-		if err != nil {
-			return "", errors.New("error json marshal: " + err.Error())
-		}
-		return string(recordsJson), nil
-	case "wear_metrics_by_drive.csv":
-		var records []*WearMetricsByDrive
-		if err := gocsv.Unmarshal(reader, &records); err != nil {
-			return "", errors.New("error parsing csv file: " + err.Error())
-		}
-		recordsJson, err := json.Marshal(records)
-		if err != nil {
-			return "", errors.New("error json marshal: " + err.Error())
-		}
-		return string(recordsJson), nil
-	default:
-		return "", errors.New("model type error")
-	}
 }
