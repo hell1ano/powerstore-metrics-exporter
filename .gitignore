@@ -1,0 +1,8 @@
+# Production data and local bulk caches must never be published.
+/bulk/
+/private-data/
+/PS-data*
+*.csv
+*.zip
+*.tar.gz
+*.tgz

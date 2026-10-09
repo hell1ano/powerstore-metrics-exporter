@@ -1,8 +1,10 @@
 # Upstream contribution notes
 
 Baseline: `564df4d66274f318092529986288baeca12ec798` (`Update template and dashboard`).
-Development branch: `codex/zabbix7-collection-health` in
-`hell1ano/powerstore-metrics-exporter`.
+The initial work was reviewed on `zabbix7-collection-health` (originally
+`codex/zabbix7-collection-health`) and merged into `main` in
+`hell1ano/powerstore-metrics-exporter`. Further work in this fork targets `main`.
+See [the to-do list](../TODO.md) for remaining monitoring and compatibility work.
 
 The work is split into two independently reviewable commits:
 
@@ -56,10 +58,10 @@ verification are intentionally separate follow-up work.
 ## Preparing the upstream pull request
 
 ```sh
-git log --reverse --format=fuller 564df4d..codex/zabbix7-collection-health
-git diff --stat 564df4d...codex/zabbix7-collection-health
+git log --reverse --format=fuller 564df4d..main
+git diff --stat 564df4d...main
 ```
 
 Keep the two commits when rebasing or cherry-picking to an upstream contribution
 branch. Describe the concrete failure modes and attach the completed pilot results.
-This branch is pushed to the personal fork only; no upstream branch is changed.
+Changes are pushed to the personal fork only; no upstream branch is changed.
