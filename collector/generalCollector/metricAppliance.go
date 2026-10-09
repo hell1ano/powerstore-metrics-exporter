@@ -103,7 +103,7 @@ func (c *metricApplianceCollector) Collect(ch chan<- prometheus.Metric) {
 			for _, metricName := range metricAppliancePerfCollectorMetric {
 				metricValue := data.Get(metricName)
 				metricDesc := c.metrics["appliance"+"_"+metricName]
-				if metricValue.Exists() && metricValue.Type != gjson.Null {
+				if metricValue.Type == gjson.Number {
 					ch <- prometheus.MustNewConstMetric(metricDesc, prometheus.GaugeValue, metricValue.Float(), applianceID, applianceName.String())
 				}
 			}
@@ -131,10 +131,13 @@ func (c *metricApplianceCollector) Collect(ch chan<- prometheus.Metric) {
 					return
 				}
 				appliancePerformance := appliancePerformanceArray[len(appliancePerformanceArray)-1]
+				if !requireMeasurements(ch, c.logger, c.client.IP, applianceID, appliancePerformance, metricAppliancePerfCollectorMetric) {
+					return
+				}
 				for _, metricName := range metricAppliancePerfCollectorMetric {
 					metricValue := appliancePerformance.Get(metricName)
 					metricDesc := c.metrics["appliance"+"_"+metricName]
-					if metricValue.Exists() && metricValue.Type != gjson.Null {
+					if metricValue.Type == gjson.Number {
 						ch <- prometheus.MustNewConstMetric(metricDesc, prometheus.GaugeValue, metricValue.Float(), applianceID, applianceName)
 					}
 				}

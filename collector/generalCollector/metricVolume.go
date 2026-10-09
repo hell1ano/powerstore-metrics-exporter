@@ -104,7 +104,7 @@ func (c *metricVolumeCollector) Collect(ch chan<- prometheus.Metric) {
 			for _, metricName := range metricVolumeCollectorMetric {
 				metricValue := data.Get(metricName)
 				metricDesc := c.metrics["volume"+"_"+metricName]
-				if metricValue.Exists() && metricValue.Type != gjson.Null {
+				if metricValue.Type == gjson.Number {
 					ch <- prometheus.MustNewConstMetric(metricDesc, prometheus.GaugeValue, metricValue.Float(), volumeName.String(), applianceID)
 				}
 			}
@@ -133,11 +133,14 @@ func (c *metricVolumeCollector) Collect(ch chan<- prometheus.Metric) {
 					return
 				}
 				volumeData := volumeDataArray[len(volumeDataArray)-1]
+				if !requireMeasurements(ch, c.logger, c.client.IP, volumeId, volumeData, metricVolumeCollectorMetric) {
+					return
+				}
 				applianceID := volumeData.Get("appliance_id").String()
 				for _, metricName := range metricVolumeCollectorMetric {
 					metricValue := volumeData.Get(metricName)
 					metricDesc := c.metrics["volume"+"_"+metricName]
-					if metricValue.Exists() && metricValue.Type != gjson.Null {
+					if metricValue.Type == gjson.Number {
 						ch <- prometheus.MustNewConstMetric(metricDesc, prometheus.GaugeValue, metricValue.Float(), volumeName, applianceID)
 					}
 				}

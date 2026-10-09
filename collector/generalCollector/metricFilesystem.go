@@ -118,7 +118,7 @@ func (c *metricFilesystemCollector) Collect(ch chan<- prometheus.Metric) {
 			for _, metricName := range metricFilesystemCollectorMetric {
 				metricValue := data.Get(metricName)
 				metricDesc := c.metrics["filesystem"+"_"+metricName]
-				if metricValue.Exists() && metricValue.Type != gjson.Null {
+				if metricValue.Type == gjson.Number {
 					ch <- prometheus.MustNewConstMetric(metricDesc, prometheus.GaugeValue, metricValue.Float(), labels...)
 				}
 			}
@@ -149,10 +149,13 @@ func (c *metricFilesystemCollector) Collect(ch chan<- prometheus.Metric) {
 					report(filesystemId, fmt.Errorf("no samples returned for known object"))
 					return
 				}
+				if !requireMeasurements(ch, c.logger, c.client.IP, filesystemId, filesystemArray[len(filesystemArray)-1], metricFilesystemCollectorMetric) {
+					return
+				}
 				for _, metricName := range metricFilesystemCollectorMetric {
 					metricValue := filesystemArray[len(filesystemArray)-1].Get(metricName)
 					metricDesc := c.metrics["filesystem"+"_"+metricName]
-					if metricValue.Exists() && metricValue.Type != gjson.Null {
+					if metricValue.Type == gjson.Number {
 						ch <- prometheus.MustNewConstMetric(metricDesc, prometheus.GaugeValue, metricValue.Float(), labels...)
 					}
 				}

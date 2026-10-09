@@ -101,7 +101,7 @@ func (c *metricFcPortCollector) Collect(ch chan<- prometheus.Metric) {
 			for _, metricName := range metricFcPortCollectorMetric {
 				metricValue := data.Get(metricName)
 				metricDesc := c.metrics["fcport"+"_"+metricName]
-				if metricValue.Exists() && metricValue.Type != gjson.Null {
+				if metricValue.Type == gjson.Number {
 					ch <- prometheus.MustNewConstMetric(metricDesc, prometheus.GaugeValue, metricValue.Float(), fcPortName.String(), applianceID)
 				}
 			}
@@ -130,11 +130,14 @@ func (c *metricFcPortCollector) Collect(ch chan<- prometheus.Metric) {
 					return
 				}
 				fcPortData := fcPortDataArray[len(fcPortDataArray)-1]
+				if !requireMeasurements(ch, c.logger, c.client.IP, portId, fcPortData, metricFcPortCollectorMetric) {
+					return
+				}
 				applianceID := fcPortData.Get("appliance_id").String()
 				for _, metricName := range metricFcPortCollectorMetric {
 					metricValue := fcPortData.Get(metricName)
 					metricDesc := c.metrics["fcport"+"_"+metricName]
-					if metricValue.Exists() && metricValue.Type != gjson.Null {
+					if metricValue.Type == gjson.Number {
 						ch <- prometheus.MustNewConstMetric(metricDesc, prometheus.GaugeValue, metricValue.Float(), portName, applianceID)
 					}
 				}

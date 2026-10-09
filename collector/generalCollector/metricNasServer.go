@@ -99,7 +99,7 @@ func (c *metricNasCollector) Collect(ch chan<- prometheus.Metric) {
 			for _, metricName := range metricNasCollectorMetric {
 				metricValue := data.Get(metricName)
 				metricDesc := c.metrics["nas"+"_"+metricName]
-				if metricValue.Exists() && metricValue.Type != gjson.Null {
+				if metricValue.Type == gjson.Number {
 					ch <- prometheus.MustNewConstMetric(metricDesc, prometheus.GaugeValue, metricValue.Float(), nasName.String())
 				}
 			}
@@ -128,10 +128,13 @@ func (c *metricNasCollector) Collect(ch chan<- prometheus.Metric) {
 					return
 				}
 				nasData := nasDataArray[len(nasDataArray)-1]
+				if !requireMeasurements(ch, c.logger, c.client.IP, nasId, nasData, metricNasCollectorMetric) {
+					return
+				}
 				for _, metricName := range metricNasCollectorMetric {
 					metricValue := nasData.Get(metricName)
 					metricDesc := c.metrics["nas"+"_"+metricName]
-					if metricValue.Exists() && metricValue.Type != gjson.Null {
+					if metricValue.Type == gjson.Number {
 						ch <- prometheus.MustNewConstMetric(metricDesc, prometheus.GaugeValue, metricValue.Float(), nasName)
 					}
 				}

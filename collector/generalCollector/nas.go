@@ -58,6 +58,11 @@ func (c *nasCollector) Collect(ch chan<- prometheus.Metric) {
 		level.Warn(c.logger).Log("msg", "get Nas data error", "err", err)
 		return
 	}
+	if err := checkHealthCoverage(nasData, client.ModuleIDs(c.client.IP)["nas"], []string{"id", "name", "operational_status"}); err != nil {
+		reportCollectionError(ch, err)
+		level.Warn(c.logger).Log("msg", "incomplete NAS health response", "ip", c.client.IP, "err", err)
+		return
+	}
 	for _, nas := range gjson.Parse(nasData).Array() {
 		name := nas.Get("name").String()
 		state := nas.Get("operational_status")

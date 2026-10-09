@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"powerstore-metrics-exporter/collector/bulkClient"
 
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/tidwall/gjson"
 )
 
@@ -54,6 +57,45 @@ func checkObjectCoverage(data, idField string, expected map[string]gjson.Result,
 	for id := range expected {
 		if !seen[id] {
 			failures = append(failures, fmt.Errorf("%s=%q: known object is missing measurements", idField, id))
+		}
+	}
+	return errors.Join(failures...)
+}
+
+// Optional fields may be absent, but a known object must have a numeric sample.
+func requireMeasurements(ch chan<- prometheus.Metric, logger log.Logger, ip, id string, row gjson.Result, fields []string) bool {
+	for _, field := range fields {
+		if row.Get(field).Type == gjson.Number {
+			return true
+		}
+	}
+	err := fmt.Errorf("object %q has no supported numeric measurements", id)
+	reportCollectionError(ch, err)
+	level.Warn(logger).Log("msg", "incomplete API sample", "ip", ip, "object_id", id, "err", err)
+	return false
+}
+
+// Health endpoints must return every known object and its required string fields.
+// New objects are accepted; they need not wait for a scheduled inventory refresh.
+func checkHealthCoverage(data string, expected map[string]gjson.Result, fields []string) error {
+	if expected == nil {
+		return fmt.Errorf("inventory unavailable")
+	}
+	seen := map[string]bool{}
+	var failures []error
+	for _, row := range gjson.Parse(data).Array() {
+		id := row.Get("id").String()
+		seen[id] = true
+		for _, field := range fields {
+			value := row.Get(field)
+			if value.Type != gjson.String || value.String() == "" {
+				failures = append(failures, fmt.Errorf("id=%q: missing or invalid %s", id, field))
+			}
+		}
+	}
+	for id := range expected {
+		if !seen[id] {
+			failures = append(failures, fmt.Errorf("id=%q: known object missing from health response", id))
 		}
 	}
 	return errors.Join(failures...)

@@ -91,7 +91,7 @@ func (c *metricEthPortCollector) Collect(ch chan<- prometheus.Metric) {
 			for _, metricName := range metricEthPortCollectorMetric {
 				metricValue := data.Get(metricName)
 				metricDesc := c.metrics["ethport"+"_"+metricName]
-				if metricValue.Exists() && metricValue.Type != gjson.Null {
+				if metricValue.Type == gjson.Number {
 					ch <- prometheus.MustNewConstMetric(metricDesc, prometheus.GaugeValue, metricValue.Float(), ethPortName.String(), applianceID)
 				}
 			}
@@ -120,11 +120,14 @@ func (c *metricEthPortCollector) Collect(ch chan<- prometheus.Metric) {
 					return
 				}
 				ethPortData := ethPortDataArray[len(ethPortDataArray)-1]
+				if !requireMeasurements(ch, c.logger, c.client.IP, portId, ethPortData, metricEthPortCollectorMetric) {
+					return
+				}
 				applianceID := ethPortData.Get("appliance_id").String()
 				for _, metricName := range metricEthPortCollectorMetric {
 					metricValue := ethPortData.Get(metricName)
 					metricDesc := c.metrics["ethport"+"_"+metricName]
-					if metricValue.Exists() && metricValue.Type != gjson.Null {
+					if metricValue.Type == gjson.Number {
 						ch <- prometheus.MustNewConstMetric(metricDesc, prometheus.GaugeValue, metricValue.Float(), portName, applianceID)
 					}
 				}

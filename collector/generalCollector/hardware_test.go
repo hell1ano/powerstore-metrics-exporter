@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/tidwall/gjson"
 	"net/http"
 	"net/http/httptest"
 	"powerstore-metrics-exporter/collector/client"
@@ -27,6 +28,8 @@ func TestNodeDoesNotRequireStartupInventory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	client.PowerstoreModuleID[api.IP] = map[string]map[string]gjson.Result{"drive": {}}
+	defer delete(client.PowerstoreModuleID, api.IP)
 	registry := prometheus.NewPedanticRegistry()
 	registry.MustRegister(Monitored(api.IP, "hardware", false, NewHardwareCollector(api, logger)))
 	metrics, err := registry.Gather()

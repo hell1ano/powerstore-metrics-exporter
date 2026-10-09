@@ -100,7 +100,7 @@ func (c *metricVgCollector) Collect(ch chan<- prometheus.Metric) {
 			for _, metricName := range metricVgCollectorMetric {
 				metricValue := data.Get(metricName)
 				metricDesc := c.metrics["vg"+"_"+metricName]
-				if metricValue.Exists() && metricValue.Type != gjson.Null {
+				if metricValue.Type == gjson.Number {
 					ch <- prometheus.MustNewConstMetric(metricDesc, prometheus.GaugeValue, metricValue.Float(), volumeGroupName.String())
 				}
 			}
@@ -129,10 +129,13 @@ func (c *metricVgCollector) Collect(ch chan<- prometheus.Metric) {
 					return
 				}
 				vgData := vgDataArray[len(vgDataArray)-1]
+				if !requireMeasurements(ch, c.logger, c.client.IP, vgId, vgData, metricVgCollectorMetric) {
+					return
+				}
 				for _, metricName := range metricVgCollectorMetric {
 					metricValue := vgData.Get(metricName)
 					metricDesc := c.metrics["vg"+"_"+metricName]
-					if metricValue.Exists() && metricValue.Type != gjson.Null {
+					if metricValue.Type == gjson.Number {
 						ch <- prometheus.MustNewConstMetric(metricDesc, prometheus.GaugeValue, metricValue.Float(), vgName)
 					}
 				}

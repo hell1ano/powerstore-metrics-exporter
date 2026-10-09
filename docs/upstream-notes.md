@@ -122,3 +122,14 @@ coverage reports every unmatched or missing object. This makes empty-name cases
 traceable without treating the exporter label as proof of an unnamed array object.
 Synthetic tests assert the emitted diagnostics and failure health. No production
 identifiers or logs are included in the commit.
+
+## Review fixes: incomplete direct collection
+
+Direct performance, filesystem capacity and drive-wear collectors now reject a
+known object's latest sample when every supported measurement is absent, null or
+nonnumeric. Optional numeric fields remain optional. NAS health checks required
+identity/status fields and known-object coverage; hardware checks required fields
+and known-drive coverage. These failures emit collection failure health and log
+object-specific diagnostics instead of refreshing the success timestamp.
+Validation: synthetic incomplete volume/NAS/drive responses, optional empty NAS
+inventory and valid status responses; full Go tests and vet. No private data added.

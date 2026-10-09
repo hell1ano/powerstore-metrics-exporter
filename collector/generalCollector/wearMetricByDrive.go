@@ -97,6 +97,9 @@ func (c *metricWearMetricCollector) Collect(ch chan<- prometheus.Metric) {
 					return
 				}
 				wearData := metricWearArray[len(metricWearArray)-1]
+				if !requireMeasurements(ch, c.logger, c.client.IP, driveID, wearData, []string{"percent_endurance_remaining"}) {
+					return
+				}
 				applianceID := wearData.Get("appliance_id").String()
 				metricsValue := wearData.Get("percent_endurance_remaining")
 				metricDesc := c.metrics["wear"]

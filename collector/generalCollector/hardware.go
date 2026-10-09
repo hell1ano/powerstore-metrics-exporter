@@ -83,6 +83,15 @@ func (c *hardwareCollector) Collect(ch chan<- prometheus.Metric) {
 			reportCollectionError(ch, err)
 			level.Warn(c.logger).Log("msg", "get hardware data error", "err", err)
 		}
+		expected := map[string]gjson.Result{}
+		if types == "Drive" {
+			expected = client.ModuleIDs(c.client.IP)["drive"]
+		}
+		if err := checkHealthCoverage(hardwareData, expected, []string{"id", "name", "appliance_id", "lifecycle_state"}); err != nil {
+			reportCollectionError(ch, err)
+			level.Warn(c.logger).Log("msg", "incomplete hardware health response", "ip", c.client.IP, "type", types, "err", err)
+			continue
+		}
 		for _, hardware := range gjson.Parse(hardwareData).Array() {
 			id := hardware.Get("appliance_id").String()
 			name := hardware.Get("name").String()
