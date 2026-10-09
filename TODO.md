@@ -2,7 +2,7 @@
 
 ## Before production monitoring
 
-- [ ] **P1: Accept the PowerStore bulk timestamp format.** In addition to RFC3339,
+- [x] **P1: Accept the PowerStore bulk timestamp format.** In addition to RFC3339,
   support space-separated timestamps with hour-only UTC offsets (synthetic example:
   `2000-01-01 00:00:00+00`). Keep timezone-aware freshness checks and add synthetic
   regression cases. The current RFC3339-only validator rejects this format.

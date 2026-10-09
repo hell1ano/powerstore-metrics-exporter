@@ -143,7 +143,7 @@ func validateArchive(reader io.Reader) (map[string]moduleStatus, error) {
 			if err != nil {
 				return nil, fmt.Errorf("%s CSV: %w", module, err)
 			}
-			timestamp, err := time.Parse(time.RFC3339Nano, row[timestampColumn])
+			timestamp, err := parseSourceTimestamp(row[timestampColumn])
 			if err != nil || timestamp.IsZero() || timestamp.After(time.Now().Add(time.Minute)) {
 				return nil, fmt.Errorf("%s has invalid or future source timestamp %q", module, row[timestampColumn])
 			}
@@ -168,6 +168,17 @@ func validateArchive(reader io.Reader) (map[string]moduleStatus, error) {
 		return nil, fmt.Errorf("bulk archive contains no recognized metric CSVs")
 	}
 	return modules, nil
+}
+
+// PowerStore bulk CSVs use an hour-only offset; REST responses use RFC3339.
+// Never assume the exporter's local timezone for a timestamp without an offset.
+func parseSourceTimestamp(value string) (time.Time, error) {
+	for _, layout := range []string{time.RFC3339Nano, "2006-01-02 15:04:05-07", "2006-01-02 15:04:05-07:00"} {
+		if timestamp, err := time.Parse(layout, value); err == nil {
+			return timestamp, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("unsupported source timestamp format")
 }
 
 func (bc *BulkClient) checkFreshness(module string, now time.Time) error {
