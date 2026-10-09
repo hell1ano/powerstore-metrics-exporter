@@ -36,6 +36,7 @@ import (
 )
 
 type Client struct {
+	inventoryLoadMu  sync.Mutex
 	capacityInterval string
 	authMu           sync.RWMutex
 	IP               string

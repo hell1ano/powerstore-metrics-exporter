@@ -101,6 +101,11 @@ func Run(config *utils.Config, logger log.Logger) {
 		}
 		// Initialize the corresponding relationship between each component id and component name
 		client.InitModuleID(logger)
+		// Check for failed classes locally; successful classes generate no API traffic.
+		recovery := cron.New(cron.WithChain(cron.SkipIfStillRunning(cron.DefaultLogger)))
+		_, _ = recovery.AddFunc("@every 1m", func() { client.RetryMissingInventory(logger) })
+		recovery.Start()
+		defer recovery.Stop()
 		inventoryCron, err := inventoryRefreshJob(config.Exporter.InventoryRefresh, func() { client.InitModuleID(logger) })
 		if err != nil {
 			level.Error(logger).Log("msg", "invalid inventoryRefresh", "err", err)

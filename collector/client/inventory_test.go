@@ -132,3 +132,48 @@ func TestAuthenticationRetryIsBounded(t *testing.T) {
 		t.Fatalf("authentication retried %d requests", requests)
 	}
 }
+
+func TestRetryOnlyFailedInventoryClasses(t *testing.T) {
+	utils.InitReqCounter(2)
+	fail := true
+	calls := map[string]int{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls[r.URL.Path]++
+		if r.URL.Path == "/file_system" {
+			if fail {
+				w.WriteHeader(503)
+				return
+			}
+			fmt.Fprint(w, `[{"id":"fs1","name":"filesystem","nas_server_id":"nas1"}]`)
+			return
+		}
+		fmt.Fprint(w, `[]`)
+	}))
+	defer srv.Close()
+	c := &Client{IP: "retry-test", baseUrl: srv.URL + "/", http: srv.Client(), logger: log.NewNopLogger()}
+	defer delete(PowerstoreModuleID, c.IP)
+	c.InitModuleID(c.logger)
+	before := ModuleIDs(c.IP)
+	if before["filesystem"] != nil || before["volume"] == nil {
+		t.Fatal("incorrect failure/empty distinction")
+	}
+	fail = false
+	c.RetryMissingInventory(c.logger)
+	recovered := ModuleIDs(c.IP)
+	if recovered["filesystem"]["fs1"].String() != "filesystem" || recovered["filesystem_nas"]["fs1"].String() != "nas1" {
+		t.Fatal("inventory did not recover")
+	}
+	if before["filesystem"] != nil {
+		t.Fatal("published snapshot mutated")
+	}
+	c.RetryMissingInventory(c.logger)
+	for path, count := range calls {
+		want := 1
+		if path == "/file_system" {
+			want = 2
+		}
+		if count != want {
+			t.Errorf("%s called %d times, want %d", path, count, want)
+		}
+	}
+}

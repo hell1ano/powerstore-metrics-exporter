@@ -283,13 +283,34 @@ func ModuleIDs(ip string) map[string]map[string]gjson.Result {
 }
 
 func (c *Client) InitModuleID(logger log.Logger) {
+	c.loadInventory(logger, false)
+}
+
+// RetryMissingInventory only retries failed resource classes. Successful empty
+// classes are non-nil and are not rediscovered by the recovery timer.
+func (c *Client) RetryMissingInventory(logger log.Logger) {
+	c.loadInventory(logger, true)
+}
+
+func (c *Client) loadInventory(logger log.Logger, missingOnly bool) {
+	c.inventoryLoadMu.Lock()
+	defer c.inventoryLoadMu.Unlock()
 	snapshot := make(map[string]map[string]gjson.Result)
+	if missingOnly {
+		for module, entries := range ModuleIDs(c.IP) {
+			snapshot[module] = entries
+		}
+	}
+
 	loaders := map[string]func() (string, error){
 		"appliance": c.GetApplianceId, "volume": c.GetVolumeId, "volumegroup": c.GetVolumeGroupId,
 		"ethport": c.GetEthPortId, "fcport": c.GetFcPortId, "drive": c.GetDrivesId,
 		"nas": c.GetNasId, "filesystem": c.GetFilesystemId,
 	}
 	for module, load := range loaders {
+		if missingOnly && snapshot[module] != nil {
+			continue
+		}
 		data, err := load()
 		if err != nil {
 			level.Error(logger).Log("msg", "inventory refresh failed", "ip", c.IP, "module", module, "err", err)

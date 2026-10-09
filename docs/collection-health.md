@@ -154,3 +154,13 @@ then use the reported ID with the array's read-only filesystem instance query.
 When inventory is startup-only, restart after verifying an inventory change. Logs
 contain operational identifiers and should remain private; full API responses and
 credentials are not included in these diagnostics.
+
+## Failed inventory recovery
+
+A recovery timer checks once per minute for inventory classes that failed to load
+and retries only those classes. Successfully loaded classes, including empty ones,
+make no API requests from this timer. This preserves startup-only discovery by
+default; `inventoryRefresh` still controls deliberate full rediscovery. Failed
+scheduled refreshes also recover this way. Loads are serialized and snapshots
+remain immutable. Synthetic tests verify selective recovery, restored filesystem
+NAS ownership, and no further requests after recovery.

@@ -133,3 +133,13 @@ and known-drive coverage. These failures emit collection failure health and log
 object-specific diagnostics instead of refreshing the success timestamp.
 Validation: synthetic incomplete volume/NAS/drive responses, optional empty NAS
 inventory and valid status responses; full Go tests and vet. No private data added.
+
+## Failed inventory recovery
+
+A recovery timer checks once per minute for inventory classes that failed to load
+and retries only those classes. Successfully loaded classes, including empty ones,
+make no API requests from this timer. This preserves startup-only discovery by
+default; `inventoryRefresh` still controls deliberate full rediscovery. Failed
+scheduled refreshes also recover this way. Loads are serialized and snapshots
+remain immutable. Synthetic tests verify selective recovery, restored filesystem
+NAS ownership, and no further requests after recovery.
