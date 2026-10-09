@@ -128,7 +128,7 @@ func (c *metricNasCollector) Collect(ch chan<- prometheus.Metric) {
 					return
 				}
 				nasData := nasDataArray[len(nasDataArray)-1]
-				for _, metricName := range metricVgCollectorMetric {
+				for _, metricName := range metricNasCollectorMetric {
 					metricValue := nasData.Get(metricName)
 					metricDesc := c.metrics["nas"+"_"+metricName]
 					if metricValue.Exists() && metricValue.Type != gjson.Null {
