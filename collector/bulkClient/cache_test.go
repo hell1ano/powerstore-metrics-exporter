@@ -187,3 +187,45 @@ func TestConcurrentReadAndRefresh(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+func TestRestartDoesNotTrustExistingDiskCache(t *testing.T) {
+	body := archive(t, sample(time.Now()))
+	bc := testClient(t, func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write(body) })
+	if err := bc.DownloadBulkData(); err != nil {
+		t.Fatal(err)
+	}
+	restarted := &BulkClient{IP: bc.IP, IsEnable: true, baseUrl: bc.baseUrl, http: bc.http, outputDir: bc.outputDir, logger: log.NewNopLogger()}
+	if _, err := restarted.ReadCsvData("PerformanceMetricsByVolume"); err == nil {
+		t.Fatal("restart trusted disk without validation")
+	}
+	if err := restarted.DownloadBulkData(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := restarted.ReadCsvData("PerformanceMetricsByVolume"); err != nil {
+		t.Fatal("restart failed to recover")
+	}
+}
+
+func TestDisconnectThenCacheExpiry(t *testing.T) {
+	body := archive(t, sample(time.Now()))
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write(body) }))
+	defer srv.Close()
+	bc := &BulkClient{IP: "array", baseUrl: srv.URL + "/", http: srv.Client(), outputDir: t.TempDir(), logger: log.NewNopLogger()}
+	if err := bc.DownloadBulkData(); err != nil {
+		t.Fatal(err)
+	}
+	srv.Close()
+	if err := bc.DownloadBulkData(); err == nil {
+		t.Fatal("disconnect reported download success")
+	}
+	if bc.downloadSuccess {
+		t.Fatal("incorrect download health")
+	}
+	if _, err := bc.ReadCsvData("PerformanceMetricsByVolume"); err != nil {
+		t.Fatal("fresh validated cache unavailable during outage")
+	}
+	bc.lastSuccess = time.Now().Add(-2 * defaultMaxAge)
+	if _, err := bc.ReadCsvData("PerformanceMetricsByVolume"); err == nil {
+		t.Fatal("expired cache emitted during outage")
+	}
+}
