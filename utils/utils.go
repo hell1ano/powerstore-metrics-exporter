@@ -87,7 +87,7 @@ func GetConfig(configPath string) *Config {
 func PrometheusHandler(registry *prometheus.Registry, logger log.Logger) gin.HandlerFunc {
 	handlerOpts := promhttp.HandlerOpts{
 		ErrorLog:      stdlog.New(log.NewStdlibAdapter(level.Error(logger)), "", 0),
-		ErrorHandling: promhttp.ContinueOnError,
+		ErrorHandling: promhttp.HTTPErrorOnError,
 	}
 	h := promhttp.HandlerFor(registry, handlerOpts)
 	return func(context *gin.Context) {

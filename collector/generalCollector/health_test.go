@@ -7,7 +7,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-type fixtureCollector struct{ fail, empty, panicNow bool }
+type fixtureCollector struct{ fail, empty, panicNow, duplicate bool }
 
 var fixtureDesc = prometheus.NewDesc("fixture_value", "Fixture.", nil, nil)
 
@@ -21,6 +21,9 @@ func (f *fixtureCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 	if f.fail {
 		reportCollectionError(ch, errors.New("partial API failure"))
+	}
+	if f.duplicate {
+		ch <- prometheus.MustNewConstMetric(fixtureDesc, prometheus.GaugeValue, 99)
 	}
 }
 
@@ -36,6 +39,7 @@ func TestCollectionHealth(t *testing.T) {
 		{"empty required", fixtureCollector{empty: true}, false, 0},
 		{"empty optional", fixtureCollector{empty: true}, true, 1},
 		{"panic", fixtureCollector{panicNow: true}, false, 0},
+		{"duplicate sample", fixtureCollector{duplicate: true}, false, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			registry := prometheus.NewPedanticRegistry()

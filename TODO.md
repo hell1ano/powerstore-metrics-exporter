@@ -12,7 +12,7 @@
 - [x] **P1: Detect missing measurements for known objects.** Distinguish an empty
   resource class from a response that omits existing objects. Cover completely
   empty and partially incomplete responses with object-level freshness checks.
-- [ ] **P2: Surface registry and duplicate-sample failures.** Detect duplicate
+- [x] **P2: Surface registry and duplicate-sample failures.** Detect duplicate
   metric identities and ensure collection health reflects exposition failures,
   even when the HTTP handler returns a partial successful response.
 - [ ] **P2: Align filesystem bulk decoding and template coverage.** Resolve the

@@ -56,12 +56,24 @@ func (c *monitoredCollector) Collect(ch chan<- prometheus.Metric) {
 		c.inner.Collect(data)
 	}()
 	success, samples := 1.0, 0.0
+	var valid []prometheus.Metric
 	for metric := range data {
 		// Invalid metrics are converted to an explicit health value, not silently dropped.
 		if err := metric.Write(&dto.Metric{}); err != nil {
 			success = 0
 			continue
 		}
+		valid = append(valid, metric)
+	}
+	// Validate identities, descriptor consistency and metric types before emitting
+	// either data or health. Metric.Write alone cannot detect registry errors.
+	registry := prometheus.NewPedanticRegistry()
+	if err := registry.Register(&collectedSnapshot{inner: c.inner, metrics: valid}); err != nil {
+		success, valid = 0, nil
+	} else if _, err := registry.Gather(); err != nil {
+		success, valid = 0, nil
+	}
+	for _, metric := range valid {
 		samples++
 		ch <- metric
 	}
@@ -78,4 +90,16 @@ func (c *monitoredCollector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(c.success, prometheus.GaugeValue, success)
 	ch <- prometheus.MustNewConstMetric(c.samples, prometheus.GaugeValue, samples)
 	ch <- prometheus.MustNewConstMetric(c.lastSuccessDesc, prometheus.GaugeValue, last)
+}
+
+type collectedSnapshot struct {
+	inner   prometheus.Collector
+	metrics []prometheus.Metric
+}
+
+func (s *collectedSnapshot) Describe(ch chan<- *prometheus.Desc) { s.inner.Describe(ch) }
+func (s *collectedSnapshot) Collect(ch chan<- prometheus.Metric) {
+	for _, metric := range s.metrics {
+		ch <- metric
+	}
 }
