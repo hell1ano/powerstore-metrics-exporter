@@ -98,7 +98,7 @@ not use the new health metrics and retains its known trigger/mapping limitations
   excluded ports and maintenance behavior before paging operators.
 
 See [collection health](../../docs/collection-health.md) for metric semantics and
-remaining limitations, including startup-only inventory and non-bulk source age.
+remaining limitations, including non-bulk source age and live pilot validation.
 
 ## Filesystem field availability
 

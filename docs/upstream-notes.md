@@ -6,7 +6,7 @@ The initial work was reviewed on `zabbix7-collection-health` (originally
 `hell1ano/powerstore-metrics-exporter`. Further work in this fork targets `main`.
 See [the to-do list](../TODO.md) for remaining monitoring and compatibility work.
 
-The work is split into two independently reviewable commits:
+The initial implementation was split into two independently reviewable commits:
 
 1. **fix: validate bulk cache publication and expose collection health**
    - Preserve the last valid archive on download, HTTP, gzip, tar and CSV failures.
@@ -52,8 +52,9 @@ trigger expressions. They do not emulate the Zabbix import API or trigger engine
 Before an upstream production-readiness claim, perform the documented pilot on
 Zabbix 7.0.24 / PowerStoreOS 5.0.0.2. In particular, confirm the real bulk CSV timestamp
 format, array permissions, optional resource behavior and capacity API compatibility.
-Startup-only inventory, pagination, capacity source intervals and array-side TLS
-verification are intentionally separate follow-up work.
+Inventory refresh, pagination, bulk capacity and configurable array TLS verification
+are implemented in the follow-up commits below. The operator will perform the
+[live pilot](pilot-checklist.md).
 
 ## Preparing the upstream pull request
 
@@ -62,6 +63,38 @@ git log --reverse --format=fuller 564df4d..main
 git diff --stat 564df4d...main
 ```
 
-Keep the two commits when rebasing or cherry-picking to an upstream contribution
-branch. Describe the concrete failure modes and attach the completed pilot results.
+Preserve the activity commits when rebasing or cherry-picking to an upstream
+contribution branch. Describe the concrete failure modes and attach the completed pilot results.
 Changes are pushed to the personal fork only; no upstream branch is changed.
+
+## Follow-up activity commits on main
+
+| Commit | Activity | Validation |
+| --- | --- | --- |
+| `d2d7a73` | PowerStore timestamp formats | Offsets, fractions, invalid formats, source expiry |
+| `b9e0abc` | Preserve missing CSV measurements | Sparse columns, empty cells, genuine zero, invalid schemas |
+| `3bd49c4` | Detect missing known objects | Complete/partial/empty inventory coverage |
+| `c83431f` | Duplicate and registry failure health | Duplicate metrics and HTTP error propagation |
+| `e65df26` | Filesystem template coverage | CSV-to-exposition-to-template contract |
+| `8fd8dff` | Inventory refresh and pagination | Atomic snapshots, page failures, bounded authentication retries |
+| `5b801b4` | Array TLS trust configuration | Trusted/untrusted CA, hostname mismatch, invalid CA files |
+| `37f2ab1` | Hardware refresh follow-up | Nodes without startup inventory |
+| `ccfeda3` | Bulk capacity and explicit REST intervals | Capacity template selectors and requested intervals |
+| `e88e17f` | Direct NAS field correction | NAS size field and mismatched volume-group field |
+| `9f26e21` | Outage/restart acceptance tests | Disconnect, fresh-cache fallback, expiry, restart recovery |
+
+The commits are published together to the personal fork's `main`; each commit body
+records its trigger, behavior and validation. No upstream push is performed.
+
+The private replay accepted the original timestamp format and verified expiry
+without changing original timestamps. A separate temporary replay with current
+timestamps exercised ten bulk collectors and all 81 bulk-backed Zabbix selectors,
+with no missing metric families. Inventory names were synthetic; this does not
+validate live REST inventory, permissions, Zabbix import or trigger behavior.
+Production archives, measurements, identifiers and replay logs remain outside Git.
+
+Migration changes: array TLS verification is now enabled by default; configure
+`tlsCAFile` for an internal CA. Non-bulk capacity now defaults to five-minute samples,
+and bulk mode no longer makes daily capacity REST requests. Six unsupported
+filesystem prototypes are removed from the Zabbix 7 defaults. The Zabbix 6 export
+is unchanged.
