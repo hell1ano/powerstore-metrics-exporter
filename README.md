@@ -72,5 +72,16 @@ For Zabbix the flow would be: PowerStore(s) --> exporter --> multiple targets --
 Add ./templates/prometheus/prometheus.yml to all jobs in your Prometheus .yml config file, then restart your Prometheus instance or reload. You can update scrape interval time to support your application monitoring requirements. We use Grafana to render metrics collected by Prometheus.
 
 #### Zabbix and Grafana
-When you create a host in Zabbix, use ./templates/zabbix/zbx_exporter_templates.yaml to link PowerStore(s) to the Zabbix host. We use Grafana to render metrics collected by Zabbix. You can also create dashboards in Zabbix directly.
+For Zabbix 7.0, use `templates/zabbix/zbx_export_templates_7.0.yaml` and follow the
+[setup and migration guide](templates/zabbix/README.md). This separate template adds
+collection-failure and stale-data alerts, corrected NAS/filesystem discovery and a
+configurable HTTP/HTTPS exporter URL with certificate verification.
+
+The original Zabbix 6.0 template remains at `templates/zabbix/zbx_export_templates.yaml`.
+Do not link both templates to the same host because item keys overlap. Grafana is
+optional; dashboards can also be created directly in Zabbix.
+
+See [collection health and cache reliability](docs/collection-health.md) for the
+new health metrics, `exporter.bulkMaxAge` setting, failure behavior and tests.
+Live validation against PowerStoreOS 5.0.0.2 remains required.
 
