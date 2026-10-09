@@ -12,7 +12,7 @@ func TestPortSpeedParsing(t *testing.T) {
 		want  float64
 		fail  bool
 	}{
-		{"Auto", 0, false}, {"25_Gbps", 25, false}, {"100_Mbps", 100, false},
+		{"Auto", 0, false}, {"25_Gbps", 25, false}, {"100_Mbps", 0.1, false}, {"10_Mbps", 0.01, false}, {"1000_Mbps", 1, false},
 		{"", 0, true}, {"garbage", 0, true}, {"x_Gbps", 0, true}, {"NaN_Gbps", 0, true},
 		{"+Inf_Gbps", 0, true}, {"-1_Gbps", 0, true}, {"10_unknown", 0, true},
 	} {

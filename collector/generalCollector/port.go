@@ -47,7 +47,7 @@ var portStatusMetricMap = map[string]map[string]int{
 // port description
 var metricPortDescMap = map[string]string{
 	"is_link_up":    "Indicates whether the port's link is up:true is 1,false is 0",
-	"current_speed": "Supported Ethernet front-end port transmission speeds,units is Gps",
+	"current_speed": "Current port transmission speed in Gbps; zero means no numeric speed is available",
 }
 
 type portCollector struct {
@@ -118,6 +118,9 @@ func getPortFloatDate(key string, value gjson.Result) (float64, error) {
 	speed, err := strconv.ParseFloat(number, 64)
 	if err != nil || math.IsNaN(speed) || math.IsInf(speed, 0) || speed < 0 {
 		return 0, fmt.Errorf("invalid port speed %q", value.String())
+	}
+	if unit == "Mbps" {
+		speed /= 1000
 	}
 	return speed, nil
 }

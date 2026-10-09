@@ -264,3 +264,38 @@ func TestFilesystemDiscoveryUsesStableIDsAndNASNames(t *testing.T) {
 		t.Fatalf("unexpected filesystem discovery coverage %d/%d", count, items)
 	}
 }
+
+func TestZabbixPortSpeedsAcceptFractionalGbps(t *testing.T) {
+	data, err := os.ReadFile("../../templates/zabbix/zbx_export_templates_7.0.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document map[string]interface{}
+	if err = yaml.Unmarshal(data, &document); err != nil {
+		t.Fatal(err)
+	}
+	count := 0
+	var visit func(interface{})
+	visit = func(value interface{}) {
+		switch v := value.(type) {
+		case map[string]interface{}:
+			if key, ok := v["key"].(string); ok && strings.Contains(key, ".currentspeed[") {
+				count++
+				if v["value_type"] != "FLOAT" || v["units"] != "!Gbps" {
+					t.Errorf("%s cannot display fractional Gbps", key)
+				}
+			}
+			for _, child := range v {
+				visit(child)
+			}
+		case []interface{}:
+			for _, child := range v {
+				visit(child)
+			}
+		}
+	}
+	visit(document)
+	if count != 2 {
+		t.Fatalf("found %d speed prototypes", count)
+	}
+}

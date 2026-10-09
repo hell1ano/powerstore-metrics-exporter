@@ -164,3 +164,13 @@ default; `inventoryRefresh` still controls deliberate full rediscovery. Failed
 scheduled refreshes also recover this way. Loads are serialized and snapshots
 remain immutable. Synthetic tests verify selective recovery, restored filesystem
 NAS ownership, and no further requests after recovery.
+
+## Port speed units
+
+Port speeds are normalized to Gbps: `100_Mbps` exports `0.1`, and `25_Gbps`
+exports `25`. Auto/null exports zero (no numeric speed available). The Zabbix 7
+speed prototypes now use floating-point values and fixed Gbps units. Reimport
+the updated template and allow discovery to update existing items. Historical
+Mbps samples retain their old incorrect values; history is not rewritten. Legacy
+template users must also change speed items to floating point to retain fractions.
+Validation includes speed conversion and Zabbix prototype contract tests.
