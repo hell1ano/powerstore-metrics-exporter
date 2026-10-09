@@ -36,17 +36,18 @@ import (
 )
 
 type Client struct {
-	authMu   sync.RWMutex
-	IP       string
-	username string
-	password string
-	version  string
-	limit    int
-	baseUrl  string
-	http     *http.Client
-	token    string
-	cookie   string
-	logger   log.Logger
+	capacityInterval string
+	authMu           sync.RWMutex
+	IP               string
+	username         string
+	password         string
+	version          string
+	limit            int
+	baseUrl          string
+	http             *http.Client
+	token            string
+	cookie           string
+	logger           log.Logger
 }
 
 func NewClient(config utils.Storage, logger log.Logger) (*Client, error) {
@@ -58,6 +59,13 @@ func NewClient(config utils.Storage, logger log.Logger) (*Client, error) {
 		limit = 2000
 	} else {
 		limit = config.Limit
+	}
+	interval := config.CapacityInterval
+	if interval == "" {
+		interval = "Five_Mins"
+	}
+	if interval != "Five_Mins" && interval != "One_Hour" && interval != "One_Day" {
+		return nil, fmt.Errorf("capacityInterval must be Five_Mins, One_Hour or One_Day")
 	}
 	baseUrl := "https://" + config.Ip + "/api/rest/"
 	tlsConfig, err := utils.ArrayTLSConfig(config)
@@ -80,14 +88,15 @@ func NewClient(config utils.Storage, logger log.Logger) (*Client, error) {
 		Timeout: 60 * time.Second,
 	}
 	client := &Client{
-		IP:       config.Ip,
-		username: config.User,
-		password: config.Password,
-		version:  config.Version,
-		limit:    limit,
-		baseUrl:  baseUrl,
-		http:     httpClient,
-		logger:   logger,
+		IP:               config.Ip,
+		capacityInterval: interval,
+		username:         config.User,
+		password:         config.Password,
+		version:          config.Version,
+		limit:            limit,
+		baseUrl:          baseUrl,
+		http:             httpClient,
+		logger:           logger,
 	}
 	return client, client.InitLogin()
 }

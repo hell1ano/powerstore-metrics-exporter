@@ -36,5 +36,6 @@
 ## Separate improvements
 
 - [x] Refresh inventory after startup and implement API pagination.
-- [ ] Validate capacity source intervals and bulk-mode support on PowerStoreOS 5.
+- [x] Implement and locally validate capacity source intervals and bulk-mode support.
+- [ ] Confirm capacity interval semantics against the live PowerStoreOS 5 API.
 - [x] Add configurable certificate verification for exporter-to-array requests.

@@ -23,8 +23,8 @@ not evidence that an array has no such resources.
 
 Successful collection time is **not source sample time**. In non-bulk mode this
 change reports collection errors, but does not assert freshness of historical API
-samples. Capacity still uses the existing `One_Day` API interval. Inventory refresh,
-pagination and changing capacity to bulk collection are separate follow-up work.
+samples. Capacity defaults to the `Five_Mins` API interval in non-bulk mode; historical
+intervals can be selected explicitly. Bulk mode uses the validated capacity CSV.
 
 ## Bulk freshness
 
@@ -40,10 +40,12 @@ pagination and changing capacity to bulk collection are separate follow-up work.
 
 Set `exporter.bulkMaxAge: 15m` (the default if omitted). It must be positive and
 should exceed the bulk refresh interval plus expected scheduling/API latency.
-Nonempty modules require RFC3339 timestamps, including optional fractional seconds
-and time-zone offsets. Invalid timestamps and timestamps over one minute in the
+Nonempty modules require timezone-aware timestamps: RFC3339 or PowerStore
+space-separated timestamps with hour-only or minute offsets, including fractional
+seconds. Invalid timestamps and timestamps over one minute in the
 future reject the archive. Keep exporter and array clocks synchronized. Header-only
-CSVs are valid empty resources and are checked against download age only.
+CSVs are structurally valid and checked against download age; collectors additionally
+require the corresponding inventory to be empty.
 
 Repeatedly downloading an archive with old source timestamps does not make its data
 fresh. `ReadCsvData` rejects stale or missing modules, and the corresponding collector
@@ -101,3 +103,17 @@ file is a configuration error. This is a change from the previous insecure defau
 For a temporary migration only, `tlsInsecureSkipVerify: true` explicitly restores
 the old behavior. It disables certificate and hostname checks on both clients.
 Zabbix-to-exporter TLS configuration is separate and remains verified by default.
+
+## Capacity sources and compatibility
+
+Bulk capacity uses `SpaceMetricsByAppliance`, with the same source-age checks as
+performance. The existing `powerstore_cap_last_*` names remain latest-sample aliases
+for the raw CSV fields. `max_*` metrics are emitted only when explicitly supplied
+by an API response; five-minute samples are never advertised as daily maxima. The
+Zabbix 7 capacity selectors are covered by a synthetic CSV-to-exposition test.
+
+Without bulk collection, `capacityInterval` defaults to `Five_Mins`. Choose
+`One_Hour` or `One_Day` explicitly only when historical aggregation is intended.
+Changing from the old daily default changes the meaning of capacity trends; record
+the upgrade time when interpreting historical charts. The legacy Zabbix 6 template
+is unchanged. Live interval behavior still requires the PowerStoreOS 5 pilot.

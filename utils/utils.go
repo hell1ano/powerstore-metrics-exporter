@@ -36,6 +36,7 @@ func InitReqCounter(MaxReq int) {
 }
 
 type Storage struct {
+	CapacityInterval      string `yaml:"capacityInterval"`
 	TLSCAFile             string `yaml:"tlsCAFile"`
 	TLSInsecureSkipVerify bool   `yaml:"tlsInsecureSkipVerify"`
 	Ip                    string `yaml:"ip"`

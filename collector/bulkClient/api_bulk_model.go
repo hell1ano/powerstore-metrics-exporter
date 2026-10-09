@@ -261,6 +261,8 @@ type PerformanceMetricsByVg struct {
 }
 
 type SpaceMetricsByAppliance struct {
+	DataPhysicalUsed   int64   `csv:"data_physical_used" json:"data_physical_used"`
+	SharedLogicalUsed  int64   `csv:"shared_logical_used" json:"shared_logical_used"`
 	ApplianceID        string  `csv:"appliance_id" json:"appliance_id"`
 	Timestamp          string  `csv:"timestamp" json:"timestamp"`
 	LogicalProvisioned int64   `csv:"logical_provisioned" json:"logical_provisioned"`

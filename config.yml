@@ -40,6 +40,8 @@ storageList:
     tlsInsecureSkipVerify: false
     # Optional PEM CA bundle for an internal certificate authority.
     tlsCAFile: ""
+    # Used only without bulk collection: Five_Mins, One_Hour or One_Day.
+    capacityInterval: Five_Mins
   - ip: 10.0.0.2
     user: your-second-powerstore-username
     password: your-second-powerstore-password
@@ -50,3 +52,5 @@ storageList:
     tlsInsecureSkipVerify: false
     # Optional PEM CA bundle for an internal certificate authority.
     tlsCAFile: ""
+    # Used only without bulk collection: Five_Mins, One_Hour or One_Day.
+    capacityInterval: Five_Mins

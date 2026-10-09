@@ -125,7 +125,7 @@ func Run(config *utils.Config, logger log.Logger) {
 		ApplianceRegistry.MustRegister(generalCollector.Monitored(storage.Ip, "appliance", false, generalCollector.NewApplianceCollector(client, logger)))
 		NasRegistry.MustRegister(generalCollector.Monitored(storage.Ip, "nas", true, generalCollector.NewNasCollector(client, logger)))
 		VolumeGroupRegistry.MustRegister(generalCollector.Monitored(storage.Ip, "volume_group", true, generalCollector.NewVolumeGroupCollector(client, logger)))
-		CapacityRegistry.MustRegister(generalCollector.Monitored(storage.Ip, "capacity", false, generalCollector.NewCapacityCollector(client, logger)))
+		CapacityRegistry.MustRegister(generalCollector.Monitored(storage.Ip, "capacity", false, generalCollector.NewCapacityCollector(client, logger, bc)))
 		FileSystemRegistry.MustRegister(generalCollector.Monitored(storage.Ip, "filesystem_capacity", true, generalCollector.NewFileCollector(client, bc, logger)))
 		// Performance data
 		ApplianceRegistry.MustRegister(generalCollector.Monitored(storage.Ip, "appliance_performance", false, generalCollector.NewMetricApplianceCollector(client, bc, logger)))

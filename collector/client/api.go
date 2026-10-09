@@ -106,10 +106,14 @@ func (c *Client) GetPerf(id string) (string, error) {
 }
 
 func (c *Client) GetCap(id string) (string, error) {
+	interval := c.capacityInterval
+	if interval == "" {
+		interval = "Five_Mins"
+	}
 	var body = &RequestBody{
 		Entity:   "space_metrics_by_appliance",
 		EntityID: id,
-		Interval: "One_Day",
+		Interval: interval,
 	}
 	entityBody, err := json.Marshal(body)
 	if err != nil {

@@ -113,3 +113,37 @@ func TestBulkKnownObjectHealthAndRecovery(t *testing.T) {
 		}
 	}
 }
+
+func TestBulkCapacityToZabbixContract(t *testing.T) {
+	fields := []string{"logical_provisioned", "logical_used", "physical_total", "physical_used", "data_physical_used", "shared_logical_used", "efficiency_ratio", "data_reduction", "snapshot_savings", "thin_savings"}
+	csv := "appliance_id,timestamp," + strings.Join(fields, ",") + "\na1," + time.Now().UTC().Format(time.RFC3339) + strings.Repeat(",1", len(fields)) + "\n"
+	bc := syntheticBulk(t, "space_metrics_by_appliance.csv", csv)
+	api := &client.Client{IP: bc.IP}
+	client.PowerstoreModuleID[api.IP] = map[string]map[string]gjson.Result{"appliance": {"a1": gjson.Parse(`"appliance"`)}}
+	defer delete(client.PowerstoreModuleID, api.IP)
+	registry := prometheus.NewPedanticRegistry()
+	registry.MustRegister(Monitored(api.IP, "capacity", false, NewCapacityCollector(api, log.NewNopLogger(), bc)))
+	metrics, err := registry.Gather()
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := map[string]bool{}
+	for _, m := range metrics {
+		found[m.GetName()] = true
+		if strings.HasPrefix(m.GetName(), "powerstore_cap_max_") {
+			t.Fatal("invented daily maximum")
+		}
+		if m.GetName() == "powerstore_collector_success" && m.Metric[0].Gauge.GetValue() != 1 {
+			t.Fatal("capacity failed")
+		}
+	}
+	data, err := os.ReadFile("../../templates/zabbix/zbx_export_templates_7.0.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, metric := range regexp.MustCompile(`powerstore_cap_[a-z_]+`).FindAllString(string(data), -1) {
+		if !found[metric] {
+			t.Errorf("capacity selector absent: %s", metric)
+		}
+	}
+}

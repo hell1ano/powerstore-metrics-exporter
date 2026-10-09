@@ -18,7 +18,9 @@ package generalCollector
 
 import (
 	"fmt"
+	"powerstore-metrics-exporter/collector/bulkClient"
 	"powerstore-metrics-exporter/collector/client"
+	"strings"
 	"time"
 
 	"github.com/go-kit/log"
@@ -74,17 +76,23 @@ var metricCapDescMap = map[string]string{
 }
 
 type capacityCollector struct {
-	client  *client.Client
-	metrics map[string]*prometheus.Desc
-	logger  log.Logger
+	bulkClient *bulkClient.BulkClient
+	client     *client.Client
+	metrics    map[string]*prometheus.Desc
+	logger     log.Logger
 }
 
-func NewCapacityCollector(api *client.Client, logger log.Logger) *capacityCollector {
+func NewCapacityCollector(api *client.Client, logger log.Logger, bulk ...*bulkClient.BulkClient) *capacityCollector {
 	metrics := getCapacityMetrics(api.IP)
+	var bc *bulkClient.BulkClient
+	if len(bulk) > 0 {
+		bc = bulk[0]
+	}
 	return &capacityCollector{
-		client:  api,
-		metrics: metrics,
-		logger:  logger,
+		client:     api,
+		bulkClient: bc,
+		metrics:    metrics,
+		logger:     logger,
 	}
 }
 
@@ -94,6 +102,17 @@ func (c *capacityCollector) Collect(ch chan<- prometheus.Metric) {
 	applianceArray := client.ModuleIDs(c.client.IP)
 	if applianceArray["appliance"] == nil {
 		reportCollectionError(ch, fmt.Errorf("inventory unavailable"))
+		return
+	}
+	if c.bulkClient != nil && c.bulkClient.IsEnable {
+		data, err := readBulkForObjects(c.bulkClient, "SpaceMetricsByAppliance", "appliance_id", applianceArray["appliance"], []string{"physical_used", "physical_total", "logical_used", "logical_provisioned"})
+		if err != nil {
+			reportCollectionError(ch, err)
+			return
+		}
+		for _, row := range gjson.Parse(data).Array() {
+			c.emitCapacity(ch, row)
+		}
 		return
 	}
 	for applianceID, _ := range applianceArray["appliance"] {
@@ -109,16 +128,29 @@ func (c *capacityCollector) Collect(ch chan<- prometheus.Metric) {
 			continue
 		}
 		capacity := capacityDataArray[len(capacityDataArray)-1]
-		name := capacity.Get("appliance_id").String()
-		for _, metricName := range capCollectorMetric {
-			metricValue := capacity.Get(metricName)
-			metricDesc := c.metrics[metricName]
-			if metricValue.Exists() && metricValue.Type != gjson.Null {
-				ch <- prometheus.MustNewConstMetric(metricDesc, prometheus.GaugeValue, metricValue.Float(), name)
-			}
-		}
+		c.emitCapacity(ch, capacity)
 	}
 	level.Info(c.logger).Log("msg", "Obtaining the cluster capacity is successful", "time", time.Since(startTime))
+}
+
+// Latest-sample aliases preserve existing consumers. A five-minute sample is
+// never fabricated as a daily maximum; max_* is emitted only if supplied.
+func (c *capacityCollector) emitCapacity(ch chan<- prometheus.Metric, capacity gjson.Result) {
+	for _, field := range []string{"logical_provisioned", "logical_used", "physical_total", "physical_used"} {
+		if capacity.Get(field).Type != gjson.Number && capacity.Get("last_"+field).Type != gjson.Number {
+			reportCollectionError(ch, fmt.Errorf("capacity sample missing required measurement"))
+			return
+		}
+	}
+	for _, metricName := range capCollectorMetric {
+		value := capacity.Get(metricName)
+		if !value.Exists() && strings.HasPrefix(metricName, "last_") {
+			value = capacity.Get(strings.TrimPrefix(metricName, "last_"))
+		}
+		if value.Type == gjson.Number {
+			ch <- prometheus.MustNewConstMetric(c.metrics[metricName], prometheus.GaugeValue, value.Float(), capacity.Get("appliance_id").String())
+		}
+	}
 }
 
 func (c *capacityCollector) Describe(ch chan<- *prometheus.Desc) {

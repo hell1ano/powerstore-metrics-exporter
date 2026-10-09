@@ -107,3 +107,9 @@ Six block/mirror write metrics are omitted from its default prototypes because
 the validated bulk schema does not supply them. The exporter emits these optional
 fields only when present in the source; it never substitutes zero. Add custom
 items only after confirming those fields exist on the target array.
+
+Capacity uses five-minute bulk samples when bulk mode is enabled. Existing
+`powerstore_cap_last_*` selectors refer to the latest sample; the exporter does not
+substitute current values for daily maxima. Non-bulk requests default to
+`capacityInterval: Five_Mins`; see [collection health](../../docs/collection-health.md)
+for the migration from the previous daily default.
