@@ -18,6 +18,7 @@ package main
 
 import (
 	"flag"
+	stdlog "log"
 	"powerstore-metrics-exporter/route"
 	"powerstore-metrics-exporter/utils"
 
@@ -35,7 +36,9 @@ func init() {
 	flag.Parse()
 	config = utils.GetConfig(configPath)
 	loggers = utils.GetLogger(config.Log.Level, config.Log.Path, config.Log.Type)
-	utils.InitReqCounter(config.Exporter.ReqLimit)
+	if err := utils.InitReqCounter(config.Exporter.ReqLimit); err != nil {
+		stdlog.Fatal(err)
+	}
 }
 
 func main() {

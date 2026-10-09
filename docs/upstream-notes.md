@@ -160,3 +160,10 @@ the updated template and allow discovery to update existing items. Historical
 Mbps samples retain their old incorrect values; history is not rewritten. Legacy
 template users must also change speed items to floating point to retain fractions.
 Validation includes speed conversion and Zabbix prototype contract tests.
+
+## Review fix: request-limit validation
+
+An omitted or zero `exporter.reqLimit` now defaults to 200 concurrent requests,
+matching the example configuration. Negative limits fail startup with an explicit
+configuration error instead of panicking. Tests verify the first request can
+acquire a slot with default and explicit limits and negative values are rejected.

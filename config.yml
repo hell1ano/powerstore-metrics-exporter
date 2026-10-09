@@ -2,6 +2,7 @@ exporter:
   # port：PowerStore exporter port number
   port: 9010
   # reqLimit：The number of times the PowerStore exporter makes requests to the PowerStore manager api at the same time
+  # Omitted or zero defaults to 200; negative values are rejected at startup.
   reqLimit: 200
   # bulkDir：PowerStore exporter requests the data storage directory after the data obtained by the PowerStore manager bulk api
   bulkDir: ./bulk/

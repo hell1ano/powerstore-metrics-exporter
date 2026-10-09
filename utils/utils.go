@@ -17,6 +17,7 @@
 package utils
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -31,8 +32,15 @@ var (
 	ReqCounter chan int
 )
 
-func InitReqCounter(MaxReq int) {
-	ReqCounter = make(chan int, MaxReq)
+func InitReqCounter(maxReq int) error {
+	if maxReq < 0 {
+		return fmt.Errorf("exporter.reqLimit must be zero (default 200) or a positive integer")
+	}
+	if maxReq == 0 {
+		maxReq = 200
+	}
+	ReqCounter = make(chan int, maxReq)
+	return nil
 }
 
 type Storage struct {

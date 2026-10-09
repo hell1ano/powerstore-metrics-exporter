@@ -44,3 +44,14 @@
 The live pilot is assigned to the operator. See [pilot steps](docs/pilot-checklist.md).
 
 - [x] Add filesystem NAS ownership to metrics and Zabbix discovery using stable IDs.
+
+## Second code review fixes
+
+- [x] Reject direct samples without supported numeric measurements and incomplete
+  NAS/hardware health responses; log missing object IDs.
+- [x] Retry failed inventory classes without rediscovering successful classes.
+- [x] Handle Auto and malformed port speeds without aborting collection.
+- [x] Normalize Mbps to Gbps and enable fractional speed values in Zabbix 7.
+- [x] Default omitted/zero request limits safely and reject negative limits.
+- [ ] During the operator-led pilot, verify inventory recovery, missing-object
+  alerts and the updated floating-point speed items after template reimport.
