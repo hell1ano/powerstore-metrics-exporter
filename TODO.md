@@ -15,7 +15,7 @@
 - [x] **P2: Surface registry and duplicate-sample failures.** Detect duplicate
   metric identities and ensure collection health reflects exposition failures,
   even when the HTTP handler returns a partial successful response.
-- [ ] **P2: Align filesystem bulk decoding and template coverage.** Resolve the
+- [x] **P2: Align filesystem bulk decoding and template coverage.** Resolve the
   six block/mirror fields declared by the collector/template but absent from the
   bulk model. Account for CSV schemas that do not supply these fields; do not
   manufacture zero values. Test CSV-to-metric-to-template behavior, not only descriptors.

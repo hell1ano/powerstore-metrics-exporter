@@ -161,6 +161,13 @@ type PerformanceMetricsByFeFcPort struct {
 }
 
 type PerformanceMetricsByFileSystem struct {
+	AvgBlockWriteIops        float64 `json:"avg_block_write_iops" csv:"avg_block_write_iops"`
+	AvgMirrorWriteIops       float64 `json:"avg_mirror_write_iops" csv:"avg_mirror_write_iops"`
+	AvgBlockWriteBandwidth   float64 `json:"avg_block_write_bandwidth" csv:"avg_block_write_bandwidth"`
+	AvgMirrorWriteBandwidth  float64 `json:"avg_mirror_write_bandwidth" csv:"avg_mirror_write_bandwidth"`
+	AvgBlockWriteLatency     float64 `json:"avg_block_write_latency" csv:"avg_block_write_latency"`
+	AvgMirrorOverheadLatency float64 `json:"avg_mirror_overhead_latency" csv:"avg_mirror_overhead_latency"`
+
 	FileSystemID       string  `json:"file_system_id" csv:"file_system_id"`
 	Timestamp          string  `json:"timestamp" csv:"timestamp"`
 	AvgReadIops        float64 `json:"avg_read_iops" csv:"avg_read_iops"`

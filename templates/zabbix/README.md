@@ -99,3 +99,11 @@ not use the new health metrics and retains its known trigger/mapping limitations
 
 See [collection health](../../docs/collection-health.md) for metric semantics and
 remaining limitations, including startup-only inventory and non-bulk source age.
+
+## Filesystem field availability
+
+The Zabbix 7 template includes the twelve common filesystem performance fields.
+Six block/mirror write metrics are omitted from its default prototypes because
+the validated bulk schema does not supply them. The exporter emits these optional
+fields only when present in the source; it never substitutes zero. Add custom
+items only after confirming those fields exist on the target array.
