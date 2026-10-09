@@ -19,7 +19,6 @@ package bulkClient
 import (
 	"archive/tar"
 	"compress/gzip"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"github.com/go-kit/log"
@@ -71,6 +70,10 @@ func NewBulkClient(config utils.Storage, bulkDir string, logger log.Logger) (*Bu
 		return nil, errors.New("please check config file ,Some parameters are null")
 	}
 	baseUrl := "https://" + config.Ip + "/api/rest/"
+	tlsConfig, err := utils.ArrayTLSConfig(config)
+	if err != nil {
+		return nil, err
+	}
 	var httpClient *http.Client
 	httpClient = &http.Client{
 		Transport: &http.Transport{
@@ -82,9 +85,7 @@ func NewBulkClient(config utils.Storage, bulkDir string, logger log.Logger) (*Bu
 			IdleConnTimeout:       90 * time.Second,
 			TLSHandshakeTimeout:   10 * time.Second,
 			ExpectContinueTimeout: 1 * time.Second,
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
+			TLSClientConfig:       tlsConfig,
 		},
 		Timeout: 60 * time.Second,
 	}

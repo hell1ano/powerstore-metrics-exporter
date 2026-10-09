@@ -90,3 +90,14 @@ GET collections follow `Content-Range` and use stable ID ordering, with a maximu
 requested page size of 2,000. Incomplete, inconsistent or failed pages fail the
 whole request. Authentication is retried once. See Dell's
 [pagination contract](https://www.dell.com/support/manuals/en-sg/powerstore-9000/pwrstr-apidevg/pagination?guid=guid-55d82d5c-baf1-4b96-9ad0-ead603800af8&lang=en-us).
+
+## Array certificate verification
+
+Both REST and bulk connections now verify the array certificate and hostname by
+default. Set `tlsCAFile` per storage entry to a PEM CA bundle when using an internal
+CA, and use an IP or DNS name covered by the certificate. A missing or invalid CA
+file is a configuration error. This is a change from the previous insecure default.
+
+For a temporary migration only, `tlsInsecureSkipVerify: true` explicitly restores
+the old behavior. It disables certificate and hostname checks on both clients.
+Zabbix-to-exporter TLS configuration is separate and remains verified by default.

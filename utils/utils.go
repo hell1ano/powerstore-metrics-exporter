@@ -36,12 +36,14 @@ func InitReqCounter(MaxReq int) {
 }
 
 type Storage struct {
-	Ip       string `yaml:"ip"`
-	User     string `yaml:"user"`
-	Password string `yaml:"password"`
-	Version  string `yaml:"apiVersion"`
-	Limit    int    `yaml:"apiLimit"`
-	Bulk     bool   `yaml:"bulkCollector"`
+	TLSCAFile             string `yaml:"tlsCAFile"`
+	TLSInsecureSkipVerify bool   `yaml:"tlsInsecureSkipVerify"`
+	Ip                    string `yaml:"ip"`
+	User                  string `yaml:"user"`
+	Password              string `yaml:"password"`
+	Version               string `yaml:"apiVersion"`
+	Limit                 int    `yaml:"apiLimit"`
+	Bulk                  bool   `yaml:"bulkCollector"`
 }
 
 type Exporter struct {

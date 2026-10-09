@@ -18,7 +18,6 @@ package client
 
 import (
 	"bytes"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -61,6 +60,10 @@ func NewClient(config utils.Storage, logger log.Logger) (*Client, error) {
 		limit = config.Limit
 	}
 	baseUrl := "https://" + config.Ip + "/api/rest/"
+	tlsConfig, err := utils.ArrayTLSConfig(config)
+	if err != nil {
+		return nil, err
+	}
 	var httpClient *http.Client
 	httpClient = &http.Client{
 		Transport: &http.Transport{
@@ -72,9 +75,7 @@ func NewClient(config utils.Storage, logger log.Logger) (*Client, error) {
 			IdleConnTimeout:       90 * time.Second,
 			TLSHandshakeTimeout:   10 * time.Second,
 			ExpectContinueTimeout: 1 * time.Second,
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
+			TLSClientConfig:       tlsConfig,
 		},
 		Timeout: 60 * time.Second,
 	}

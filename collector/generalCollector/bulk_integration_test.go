@@ -38,7 +38,7 @@ func syntheticBulk(t *testing.T, filename, csv string) *bulkClient.BulkClient {
 	}
 	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write(data.Bytes()) }))
 	t.Cleanup(srv.Close)
-	bc, err := bulkClient.NewBulkClient(utils.Storage{Ip: strings.TrimPrefix(srv.URL, "https://"), User: "test", Password: "test", Version: "v4", Bulk: true}, t.TempDir(), log.NewNopLogger())
+	bc, err := bulkClient.NewBulkClient(utils.Storage{Ip: strings.TrimPrefix(srv.URL, "https://"), User: "test", Password: "test", Version: "v4", Bulk: true, TLSInsecureSkipVerify: true}, t.TempDir(), log.NewNopLogger())
 	if err != nil {
 		t.Fatal(err)
 	}

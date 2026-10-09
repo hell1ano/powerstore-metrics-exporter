@@ -37,4 +37,4 @@
 
 - [x] Refresh inventory after startup and implement API pagination.
 - [ ] Validate capacity source intervals and bulk-mode support on PowerStoreOS 5.
-- [ ] Add configurable certificate verification for exporter-to-array requests.
+- [x] Add configurable certificate verification for exporter-to-array requests.
