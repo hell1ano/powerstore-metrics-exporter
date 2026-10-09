@@ -101,9 +101,14 @@ func Run(config *utils.Config, logger log.Logger) {
 		}
 		// Initialize the corresponding relationship between each component id and component name
 		client.InitModuleID(logger)
-		inventoryCron := cron.New(cron.WithChain(cron.SkipIfStillRunning(cron.DefaultLogger)))
-		_, _ = inventoryCron.AddFunc("@every 5m", func() { client.InitModuleID(logger) })
-		inventoryCron.Start()
+		inventoryCron, err := inventoryRefreshJob(config.Exporter.InventoryRefresh, func() { client.InitModuleID(logger) })
+		if err != nil {
+			level.Error(logger).Log("msg", "invalid inventoryRefresh", "err", err)
+			return
+		}
+		if inventoryCron != nil {
+			inventoryCron.Start()
+		}
 
 		// Generate the registry for each component collector
 		ClusterRegistry := prometheus.NewPedanticRegistry()
@@ -180,4 +185,27 @@ func Run(config *utils.Config, logger log.Logger) {
 			level.Error(logger).Log("msg", "Service startup failed", "err", err)
 		}
 	}
+}
+
+// Inventory is always loaded at startup. Scheduling a refresh is opt-in and is
+// independent of bulk metric downloads and Zabbix's dependent discovery rules.
+func inventoryRefreshJob(value string, refresh func()) (*cron.Cron, error) {
+	if value == "" || value == "0" {
+		return nil, nil
+	}
+	interval, err := time.ParseDuration(value)
+	if err != nil || interval < 0 {
+		return nil, fmt.Errorf("inventoryRefresh must be 0 or a positive duration")
+	}
+	if interval == 0 {
+		return nil, nil
+	}
+	if interval < time.Second {
+		return nil, fmt.Errorf("inventoryRefresh must be at least one second")
+	}
+	c := cron.New(cron.WithChain(cron.SkipIfStillRunning(cron.DefaultLogger)))
+	if _, err := c.AddFunc("@every "+interval.String(), refresh); err != nil {
+		return nil, err
+	}
+	return c, nil
 }

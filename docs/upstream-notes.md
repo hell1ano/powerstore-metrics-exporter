@@ -98,3 +98,18 @@ Migration changes: array TLS verification is now enabled by default; configure
 and bulk mode no longer makes daily capacity REST requests. Six unsupported
 filesystem prototypes are removed from the Zabbix 7 defaults. The Zabbix 6 export
 is unchanged.
+
+## Filesystem NAS ownership follow-up
+
+- `bda63ea`: Resolve `file_system.nas_server_id` via NAS inventory and attach stable
+  filesystem ID, NAS ID and NAS name labels to both collection modes. Synthetic
+  tests cover duplicate names, NAS rename, missing ownership and recovery.
+- `08e3cda`: Add NAS display names/tags to Zabbix filesystem items and switch keys
+  and selectors to filesystem IDs. Document the discovered-item migration.
+- Inventory cadence follow-up: startup-only by default, with optional
+  `exporter.inventoryRefresh` durations. This supersedes the earlier fixed
+  five-minute refresh behavior. Bulk metric downloads keep their existing cadence.
+
+The relationship was checked against the supplied PowerStore OpenAPI definition.
+The supplied schema and PDF remain outside Git. Real NAS ownership still needs
+live pilot verification; bulk CSVs alone do not contain this mapping.

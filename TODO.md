@@ -36,9 +36,11 @@
 
 ## Separate improvements
 
-- [x] Refresh inventory after startup and implement API pagination.
+- [x] Implement API pagination and optional inventory refresh; default to startup-only.
 - [x] Implement and locally validate capacity source intervals and bulk-mode support.
 - [ ] Confirm capacity interval semantics against the live PowerStoreOS 5 API.
 - [x] Add configurable certificate verification for exporter-to-array requests.
 
 The live pilot is assigned to the operator. See [pilot steps](docs/pilot-checklist.md).
+
+- [x] Add filesystem NAS ownership to metrics and Zabbix discovery using stable IDs.

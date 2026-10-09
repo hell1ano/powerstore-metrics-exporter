@@ -82,10 +82,14 @@ timestamp formats on the target PowerStoreOS version before production rollout.
 
 ## Inventory and pagination
 
-Inventory refreshes every five minutes and publishes an immutable snapshot. Failed
+Inventory loads at startup and publishes an immutable snapshot. Periodic refresh is
+disabled by default (`exporter.inventoryRefresh: "0"`). Set a duration such as `24h`
+or `1h` to opt in. Restart the exporter after inventory changes when using the
+startup-only default. This does not alter the bulk download schedule. Failed
 resource queries remain unavailable rather than appearing as an empty inventory.
 Bulk collectors reject missing or unmatched objects; newly created objects can
-briefly report collection failure until the next inventory and bulk refresh agree.
+report collection failure until a restart or configured inventory refresh and the
+bulk refresh agree.
 Hardware node descriptors no longer depend on the startup appliance list.
 
 GET collections follow `Content-Range` and use stable ID ordering, with a maximum
@@ -117,3 +121,13 @@ Without bulk collection, `capacityInterval` defaults to `Five_Mins`. Choose
 Changing from the old daily default changes the meaning of capacity trends; record
 the upgrade time when interpreting historical charts. The legacy Zabbix 6 template
 is unchanged. Live interval behavior still requires the PowerStoreOS 5 pilot.
+
+Filesystem metrics retain the `name` label and add `file_system_id`,
+`nas_server_id` and `nas_server_name`. The filesystem-to-NAS join uses the same
+inventory snapshot as the names. Missing ownership reports collection failure
+rather than assigning a guessed NAS name. Equal names on different NAS servers
+remain distinct through their IDs.
+
+Zabbix dependent discovery processes the exporter response on its own schedule;
+it does not trigger an array inventory scan. `inventoryRefresh` controls the
+exporter's REST inventory requests only.

@@ -13,8 +13,9 @@ and result logs outside this public repository.
    should be 1. Check each component endpoint's collector success.
 3. Compare REST inventory with the array UI, including Ethernet/FC port and drive
    eligibility. Confirm optional empty classes are truly empty. Add/rename/remove
-   a test object if permitted and verify discovery after the five-minute inventory
-   and bulk refreshes. Check pagination on an inventory larger than one page.
+   a test object if permitted, restart the exporter (or use an explicitly configured
+   inventory refresh), and verify discovery after bulk collection. Confirm NAS names
+   on filesystem items, including identically named filesystems on different NAS servers. Check pagination on an inventory larger than one page.
 4. Import `templates/zabbix/zbx_export_templates_7.0.yaml`. Set the exporter URL
    and array macro as described in the template README. When updating a previously
    imported version, remove the six obsolete filesystem block/mirror prototypes
