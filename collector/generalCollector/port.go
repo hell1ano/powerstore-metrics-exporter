@@ -17,6 +17,8 @@
 package generalCollector
 
 import (
+	"fmt"
+	"math"
 	"powerstore-metrics-exporter/collector/client"
 	"strconv"
 	"strings"
@@ -77,7 +79,12 @@ func (c *portCollector) Collect(ch chan<- prometheus.Metric) {
 			name := data.Get("name").String()
 			id := data.Get("appliance_id").String()
 			for _, metricName := range portCollectorMetrics {
-				metricValue := getPortFloatDate(metricName, data.Get(metricName))
+				metricValue, err := getPortFloatDate(metricName, data.Get(metricName))
+				if err != nil {
+					reportCollectionError(ch, err)
+					level.Warn(c.logger).Log("msg", "invalid port measurement", "ip", c.client.IP, "port", name, "metric", metricName, "err", err)
+					continue
+				}
 				metricDesc := c.metrics[portType+metricName]
 				ch <- prometheus.MustNewConstMetric(metricDesc, prometheus.GaugeValue, metricValue, id, name)
 			}
@@ -92,24 +99,27 @@ func (c *portCollector) Describe(ch chan<- *prometheus.Desc) {
 	}
 }
 
-func getPortFloatDate(key string, value gjson.Result) float64 {
-	if v, ok := portStatusMetricMap[key]; ok {
-		if res, ok2 := v[value.String()]; ok2 {
-			return float64(res)
-		} else {
-			return float64(v["other"])
+func getPortFloatDate(key string, value gjson.Result) (float64, error) {
+	if key != "current_speed" {
+		if v, ok := portStatusMetricMap[key]; ok {
+			return float64(v[value.String()]), nil
 		}
-	} else if key == "current_speed" {
-		if value.Type == gjson.Null {
-			return 0
-		}
-		rs := []rune(value.String())
-		speed := string(rs[0:strings.Index(value.String(), "_")])
-		result, _ := strconv.Atoi(speed)
-		return float64(result)
-	} else {
-		return value.Float()
+		return value.Float(), nil
 	}
+	// Auto and null mean no numeric negotiated speed is available. Keep the
+	// established zero convention so link state remains independently usable.
+	if value.Type == gjson.Null || value.String() == "Auto" {
+		return 0, nil
+	}
+	number, unit, found := strings.Cut(value.String(), "_")
+	if !found || (unit != "Mbps" && unit != "Gbps") {
+		return 0, fmt.Errorf("unsupported port speed %q", value.String())
+	}
+	speed, err := strconv.ParseFloat(number, 64)
+	if err != nil || math.IsNaN(speed) || math.IsInf(speed, 0) || speed < 0 {
+		return 0, fmt.Errorf("invalid port speed %q", value.String())
+	}
+	return speed, nil
 }
 
 func getPortMetrics(ip string) map[string]*prometheus.Desc {

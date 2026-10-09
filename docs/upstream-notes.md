@@ -143,3 +143,10 @@ default; `inventoryRefresh` still controls deliberate full rediscovery. Failed
 scheduled refreshes also recover this way. Loads are serialized and snapshots
 remain immutable. Synthetic tests verify selective recovery, restored filesystem
 NAS ownership, and no further requests after recovery.
+
+## Review fix: safe port speed parsing
+
+Documented `Auto` and null speeds use zero to mean unavailable numeric speed;
+link state remains separate. Unsupported or malformed speed values produce
+collection failure health and port-specific logs without interrupting other ports.
+Synthetic tests cover Auto, null, malformed values and nonfinite/negative numbers.
