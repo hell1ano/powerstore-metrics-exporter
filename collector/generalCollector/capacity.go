@@ -17,6 +17,7 @@
 package generalCollector
 
 import (
+	"fmt"
 	"powerstore-metrics-exporter/collector/client"
 	"time"
 
@@ -94,10 +95,15 @@ func (c *capacityCollector) Collect(ch chan<- prometheus.Metric) {
 	for applianceID, _ := range applianceArray["appliance"] {
 		capacityData, err := c.client.GetCap(applianceID)
 		if err != nil {
+			reportCollectionError(ch, err)
 			level.Warn(c.logger).Log("msg", "get capacity data error", "err", err)
 			return
 		}
 		capacityDataArray := gjson.Parse(capacityData).Array()
+		if len(capacityDataArray) == 0 {
+			reportCollectionError(ch, fmt.Errorf("no capacity samples"))
+			continue
+		}
 		capacity := capacityDataArray[len(capacityDataArray)-1]
 		name := capacity.Get("appliance_id").String()
 		for _, metricName := range capCollectorMetric {

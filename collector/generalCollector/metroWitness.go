@@ -58,6 +58,7 @@ func (c *metroCollector) Collect(ch chan<- prometheus.Metric) {
 	startTime := time.Now()
 	metroData, err := c.client.GetMetro()
 	if err != nil {
+		reportCollectionError(ch, err)
 		level.Warn(c.logger).Log("msg", "get metro data error", "err", err)
 		return
 	}
@@ -74,6 +75,7 @@ func (c *metroCollector) Collect(ch chan<- prometheus.Metric) {
 
 	witnessData, err := c.client.GetWitness()
 	if err != nil {
+		reportCollectionError(ch, err)
 		level.Warn(c.logger).Log("msg", "get witness data error", "err", err)
 		return
 	}

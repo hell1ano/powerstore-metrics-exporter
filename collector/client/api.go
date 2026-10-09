@@ -18,6 +18,7 @@ package client
 
 import (
 	"encoding/json"
+	"errors"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/tidwall/gjson"
@@ -38,6 +39,9 @@ func (c *Client) getData(path, method, body string) (string, error) {
 	utils.ReqCounter <- 1
 	result, err := c.getResource(method, path, body)
 	<-utils.ReqCounter
+	if err == nil && (!gjson.Valid(result) || !gjson.Parse(result).IsArray()) {
+		return "", errors.New("PowerStore returned invalid JSON or a non-array response")
+	}
 	return result, err
 }
 

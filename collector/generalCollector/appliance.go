@@ -50,6 +50,7 @@ func (c *applianceCollector) Collect(ch chan<- prometheus.Metric) {
 	startTime := time.Now()
 	applianceData, err := c.client.GetAppliance()
 	if err != nil {
+		reportCollectionError(ch, err)
 		level.Warn(c.logger).Log("msg", "get appliance data error", "err", err)
 		return
 	}

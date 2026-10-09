@@ -33,6 +33,15 @@ import (
 )
 
 func Run(config *utils.Config, logger log.Logger) {
+	maxAge := 15 * time.Minute
+	if config.Exporter.BulkMaxAge != "" {
+		var err error
+		maxAge, err = time.ParseDuration(config.Exporter.BulkMaxAge)
+		if err != nil || maxAge <= 0 {
+			level.Error(logger).Log("msg", "bulkMaxAge must be a positive duration")
+			return
+		}
+	}
 	r := gin.New()
 	r.Use(gin.Recovery())
 	gin.SetMode(gin.ReleaseMode)
@@ -40,17 +49,23 @@ func Run(config *utils.Config, logger log.Logger) {
 		client, err := client.NewClient(storage, logger)
 		if err != nil {
 			level.Error(logger).Log("msg", "init PowerStore client error", "err", err, "ip", storage.Ip)
+			if client == nil {
+				continue
+			}
 		}
 
 		var bc = &bulkClient.BulkClient{
 			IsEnable: false,
+			IP:       storage.Ip,
 		}
 		if storage.Bulk {
 			bc.IsEnable = true
 			bc, err = bulkClient.NewBulkClient(storage, config.Exporter.BulkDir, logger)
 			if err != nil {
 				level.Error(logger).Log("msg", "init PowerStore bulk client error", "err", err, "ip", storage.Ip)
+				continue
 			}
+			bc.MaxAge = maxAge
 			err = bc.BulkEnable()
 			if err != nil {
 				level.Error(logger).Log("msg", "failed to enable batch request api", "err", err, "ip", storage.Ip)
@@ -99,28 +114,32 @@ func Run(config *utils.Config, logger log.Logger) {
 		CapacityRegistry := prometheus.NewPedanticRegistry()
 
 		// The collector that registers each component in the registry
-		ClusterRegistry.MustRegister(generalCollector.NewClusterCollector(client, logger))
-		ClusterRegistry.MustRegister(generalCollector.NewMetroCollector(client, logger))
-		PortRegistry.MustRegister(generalCollector.NewPortCollector(client, logger))
-		HardwareRegistry.MustRegister(generalCollector.NewHardwareCollector(client, logger))
-		VolumeRegistry.MustRegister(generalCollector.NewVolumeCollector(client, logger))
-		ApplianceRegistry.MustRegister(generalCollector.NewApplianceCollector(client, logger))
-		NasRegistry.MustRegister(generalCollector.NewNasCollector(client, logger))
-		VolumeGroupRegistry.MustRegister(generalCollector.NewVolumeGroupCollector(client, logger))
-		CapacityRegistry.MustRegister(generalCollector.NewCapacityCollector(client, logger))
-		FileSystemRegistry.MustRegister(generalCollector.NewFileCollector(client, bc, logger))
+		ClusterRegistry.MustRegister(generalCollector.Monitored(storage.Ip, "cluster", false, generalCollector.NewClusterCollector(client, logger)))
+		ClusterRegistry.MustRegister(generalCollector.Monitored(storage.Ip, "metro", true, generalCollector.NewMetroCollector(client, logger)))
+		PortRegistry.MustRegister(generalCollector.Monitored(storage.Ip, "port", true, generalCollector.NewPortCollector(client, logger)))
+		HardwareRegistry.MustRegister(generalCollector.Monitored(storage.Ip, "hardware", false, generalCollector.NewHardwareCollector(client, logger)))
+		VolumeRegistry.MustRegister(generalCollector.Monitored(storage.Ip, "volume", true, generalCollector.NewVolumeCollector(client, logger)))
+		ApplianceRegistry.MustRegister(generalCollector.Monitored(storage.Ip, "appliance", false, generalCollector.NewApplianceCollector(client, logger)))
+		NasRegistry.MustRegister(generalCollector.Monitored(storage.Ip, "nas", true, generalCollector.NewNasCollector(client, logger)))
+		VolumeGroupRegistry.MustRegister(generalCollector.Monitored(storage.Ip, "volume_group", true, generalCollector.NewVolumeGroupCollector(client, logger)))
+		CapacityRegistry.MustRegister(generalCollector.Monitored(storage.Ip, "capacity", false, generalCollector.NewCapacityCollector(client, logger)))
+		FileSystemRegistry.MustRegister(generalCollector.Monitored(storage.Ip, "filesystem_capacity", true, generalCollector.NewFileCollector(client, bc, logger)))
 		// Performance data
-		ApplianceRegistry.MustRegister(generalCollector.NewMetricApplianceCollector(client, bc, logger))
-		PortRegistry.MustRegister(generalCollector.NewMetricFcPortCollector(client, bc, logger))
-		PortRegistry.MustRegister(generalCollector.NewMetricEthPortCollector(client, bc, logger))
-		NasRegistry.MustRegister(generalCollector.NewMetricNasCollector(client, bc, logger))
-		FileSystemRegistry.MustRegister(generalCollector.NewMetricFilesystemCollector(client, bc, logger))
-		VolumeRegistry.MustRegister(generalCollector.NewMetricVolumeCollector(client, bc, logger))
-		VolumeGroupRegistry.MustRegister(generalCollector.NewMetricVgCollector(client, bc, logger))
-		HardwareRegistry.MustRegister(generalCollector.NewWearMetricCollector(client, bc, logger))
+		ApplianceRegistry.MustRegister(generalCollector.Monitored(storage.Ip, "appliance_performance", false, generalCollector.NewMetricApplianceCollector(client, bc, logger)))
+		PortRegistry.MustRegister(generalCollector.Monitored(storage.Ip, "fc_performance", true, generalCollector.NewMetricFcPortCollector(client, bc, logger)))
+		PortRegistry.MustRegister(generalCollector.Monitored(storage.Ip, "eth_performance", true, generalCollector.NewMetricEthPortCollector(client, bc, logger)))
+		NasRegistry.MustRegister(generalCollector.Monitored(storage.Ip, "nas_performance", true, generalCollector.NewMetricNasCollector(client, bc, logger)))
+		FileSystemRegistry.MustRegister(generalCollector.Monitored(storage.Ip, "filesystem_performance", true, generalCollector.NewMetricFilesystemCollector(client, bc, logger)))
+		VolumeRegistry.MustRegister(generalCollector.Monitored(storage.Ip, "volume_performance", true, generalCollector.NewMetricVolumeCollector(client, bc, logger)))
+		VolumeGroupRegistry.MustRegister(generalCollector.Monitored(storage.Ip, "volume_group_performance", true, generalCollector.NewMetricVgCollector(client, bc, logger)))
+		HardwareRegistry.MustRegister(generalCollector.Monitored(storage.Ip, "drive_wear", true, generalCollector.NewWearMetricCollector(client, bc, logger)))
+
+		BulkRegistry := prometheus.NewPedanticRegistry()
+		BulkRegistry.MustRegister(bc)
 
 		metricsGroup := r.Group(fmt.Sprintf("/metrics/%s", storage.Ip))
 		{
+			metricsGroup.GET("health", utils.PrometheusHandler(BulkRegistry, logger))
 			metricsGroup.GET("cluster", utils.PrometheusHandler(ClusterRegistry, logger))
 			metricsGroup.GET("port", utils.PrometheusHandler(PortRegistry, logger))
 			metricsGroup.GET("file", utils.PrometheusHandler(FileSystemRegistry, logger))

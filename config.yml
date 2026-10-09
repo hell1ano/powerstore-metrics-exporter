@@ -7,6 +7,8 @@ exporter:
   bulkDir: ./bulk/
   # bulkCron：PowerStore exporter requests from PowerStore manager bulk API regularly
   bulkCron: "*/5 * * * *"
+  # Reject bulk data when the download or oldest source sample exceeds this age.
+  bulkMaxAge: 15m
   https:
     # https.enable: enableDoes PowerStore exporter need to enable https access
     enable: false

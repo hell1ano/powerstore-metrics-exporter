@@ -62,6 +62,7 @@ func (c *volumeCollector) Collect(ch chan<- prometheus.Metric) {
 	startTime := time.Now()
 	volumeData, err := c.client.GetVolume()
 	if err != nil {
+		reportCollectionError(ch, err)
 		level.Warn(c.logger).Log("msg", "get volume data error", "err", err)
 		return
 	}

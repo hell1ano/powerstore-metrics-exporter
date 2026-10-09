@@ -56,6 +56,7 @@ func (c *volumeGroupCollector) Collect(ch chan<- prometheus.Metric) {
 	startTime := time.Now()
 	volumeGroupData, err := c.client.GetVolumeGroup()
 	if err != nil {
+		reportCollectionError(ch, err)
 		level.Warn(c.logger).Log("msg", "get volume group data error", "err", err)
 		return
 	}

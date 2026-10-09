@@ -17,6 +17,7 @@
 package generalCollector
 
 import (
+	"fmt"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
@@ -53,6 +54,7 @@ func (c *metricWearMetricCollector) Collect(ch chan<- prometheus.Metric) {
 		driveArray := client.PowerstoreModuleID[c.client.IP]
 		driveData, err := c.bulkClient.ReadCsvData("WearMetricsByDrive")
 		if err != nil {
+			reportCollectionError(ch, err)
 			level.Warn(c.logger).Log("msg", "get driver percent endurance remaining data error", "err", err)
 		}
 		driveDataJson := gjson.Parse(driveData)
@@ -75,11 +77,13 @@ func (c *metricWearMetricCollector) Collect(ch chan<- prometheus.Metric) {
 				defer wg.Done()
 				result, err := c.client.GetWearMetricByDrive(driveID)
 				if err != nil {
+					reportCollectionError(ch, err)
 					level.Warn(c.logger).Log("msg", "get driver percent endurance remaining data error", "driver_id", driveID, "err", err)
 					return
 				}
 				metricWearArray := gjson.Parse(result).Array()
 				if len(metricWearArray) == 0 {
+					reportCollectionError(ch, fmt.Errorf("no samples returned for known object"))
 					level.Warn(c.logger).Log("msg", "get driver percent endurance remaining data empty", "driver_id")
 					return
 				}

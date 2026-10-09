@@ -17,6 +17,7 @@
 package generalCollector
 
 import (
+	"fmt"
 	"powerstore-metrics-exporter/collector/bulkClient"
 	"powerstore-metrics-exporter/collector/client"
 	"sync"
@@ -84,6 +85,7 @@ func (c *metricVolumeCollector) Collect(ch chan<- prometheus.Metric) {
 		volumeArray := client.PowerstoreModuleID[c.client.IP]
 		volumeData, err := c.bulkClient.ReadCsvData("PerformanceMetricsByVolume")
 		if err != nil {
+			reportCollectionError(ch, err)
 			level.Warn(c.logger).Log("msg", "get volume performance data error", "err", err)
 		}
 		volumeDataJson := gjson.Parse(volumeData)
@@ -111,11 +113,13 @@ func (c *metricVolumeCollector) Collect(ch chan<- prometheus.Metric) {
 				defer wg.Done()
 				metricVolData, err := c.client.GetMetricVolume(volumeId)
 				if err != nil {
+					reportCollectionError(ch, err)
 					level.Warn(c.logger).Log("msg", "get volume performance data error", "err", err)
 					return
 				}
 				volumeDataArray := gjson.Parse(metricVolData).Array()
 				if len(volumeDataArray) == 0 {
+					reportCollectionError(ch, fmt.Errorf("no samples returned for known object"))
 					level.Warn(c.logger).Log("msg", "get volume performance data is null")
 					return
 				}
