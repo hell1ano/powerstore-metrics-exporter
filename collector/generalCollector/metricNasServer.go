@@ -82,10 +82,11 @@ func (c *metricNasCollector) Collect(ch chan<- prometheus.Metric) {
 	startTime := time.Now()
 	if c.isEnableBulk {
 		nasArray := client.PowerstoreModuleID[c.client.IP]
-		nasData, err := c.bulkClient.ReadCsvData("PerformanceMetricsByNasServer")
+		nasData, err := readBulkForObjects(c.bulkClient, "PerformanceMetricsByNasServer", "nas_server_id", nasArray["nas"], metricNasCollectorMetric)
 		if err != nil {
 			reportCollectionError(ch, err)
 			level.Warn(c.logger).Log("msg", "get nas https performance data error", "err", err)
+			return
 		}
 		nasDataJson := gjson.Parse(nasData)
 		for _, data := range nasDataJson.Array() {

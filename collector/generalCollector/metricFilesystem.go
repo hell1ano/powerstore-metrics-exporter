@@ -94,10 +94,11 @@ func (c *metricFilesystemCollector) Collect(ch chan<- prometheus.Metric) {
 	startTime := time.Now()
 	if c.isEnableBulk {
 		filesystemArray := client.PowerstoreModuleID[c.client.IP]
-		filesystemData, err := c.bulkClient.ReadCsvData("PerformanceMetricsByFileSystem")
+		filesystemData, err := readBulkForObjects(c.bulkClient, "PerformanceMetricsByFileSystem", "file_system_id", filesystemArray["filesystem"], metricFilesystemCollectorMetric)
 		if err != nil {
 			reportCollectionError(ch, err)
 			level.Warn(c.logger).Log("msg", "get filesystem performance data error", "err", err)
+			return
 		}
 		filesystemDataJson := gjson.Parse(filesystemData)
 		for _, data := range filesystemDataJson.Array() {

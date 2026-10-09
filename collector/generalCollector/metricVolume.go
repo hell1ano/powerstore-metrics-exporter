@@ -83,10 +83,11 @@ func (c *metricVolumeCollector) Collect(ch chan<- prometheus.Metric) {
 	startTime := time.Now()
 	if c.isEnableBulk {
 		volumeArray := client.PowerstoreModuleID[c.client.IP]
-		volumeData, err := c.bulkClient.ReadCsvData("PerformanceMetricsByVolume")
+		volumeData, err := readBulkForObjects(c.bulkClient, "PerformanceMetricsByVolume", "volume_id", volumeArray["volume"], metricVolumeCollectorMetric)
 		if err != nil {
 			reportCollectionError(ch, err)
 			level.Warn(c.logger).Log("msg", "get volume performance data error", "err", err)
+			return
 		}
 		volumeDataJson := gjson.Parse(volumeData)
 		for _, data := range volumeDataJson.Array() {

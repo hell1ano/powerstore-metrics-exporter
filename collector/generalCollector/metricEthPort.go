@@ -73,10 +73,11 @@ func (c *metricEthPortCollector) Collect(ch chan<- prometheus.Metric) {
 	startTime := time.Now()
 	if c.isEnableBulk {
 		ethPortArray := client.PowerstoreModuleID[c.client.IP]
-		ethPortData, err := c.bulkClient.ReadCsvData("PerformanceMetricsByFeEthPort")
+		ethPortData, err := readBulkForObjects(c.bulkClient, "PerformanceMetricsByFeEthPort", "fe_port_id", ethPortArray["ethport"], metricEthPortCollectorMetric)
 		if err != nil {
 			reportCollectionError(ch, err)
 			level.Warn(c.logger).Log("msg", "get eth port performance data error", "err", err)
+			return
 		}
 		ethDataJson := gjson.Parse(ethPortData)
 		for _, data := range ethDataJson.Array() {

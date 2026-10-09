@@ -65,10 +65,11 @@ func (c *fileSystemCollector) Collect(ch chan<- prometheus.Metric) {
 	startTime := time.Now()
 	if c.isEnableBulk {
 		filesystemArray := client.PowerstoreModuleID[c.client.IP]
-		filesystemData, err := c.bulkClient.ReadCsvData("SpaceMetricsByFilesystem")
+		filesystemData, err := readBulkForObjects(c.bulkClient, "SpaceMetricsByFilesystem", "file_system_id", filesystemArray["filesystem"], metricFileSystemCollector)
 		if err != nil {
 			reportCollectionError(ch, err)
 			level.Warn(c.logger).Log("msg", "get filesystem space data error", "err", err)
+			return
 		}
 		filesystemDataJson := gjson.Parse(filesystemData)
 		for _, data := range filesystemDataJson.Array() {

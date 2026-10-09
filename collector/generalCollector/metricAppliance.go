@@ -86,10 +86,11 @@ func (c *metricApplianceCollector) Collect(ch chan<- prometheus.Metric) {
 	startTime := time.Now()
 	if c.isEnableBulk {
 		applianceArray := client.PowerstoreModuleID[c.client.IP]
-		applianceData, err := c.bulkClient.ReadCsvData("PerformanceMetricsByAppliance")
+		applianceData, err := readBulkForObjects(c.bulkClient, "PerformanceMetricsByAppliance", "appliance_id", applianceArray["appliance"], metricAppliancePerfCollectorMetric)
 		if err != nil {
 			reportCollectionError(ch, err)
 			level.Warn(c.logger).Log("msg", "get appliance performance data error", "err", err)
+			return
 		}
 		applianceDataJson := gjson.Parse(applianceData)
 		for _, data := range applianceDataJson.Array() {

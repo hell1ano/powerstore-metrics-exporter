@@ -9,7 +9,7 @@
 - [x] **P1: Preserve missing CSV values.** Validate required identity/measurement
   columns before cache publication. Missing optional values must remain absent,
   rather than turning into zero-valued measurements. Add schema-variation tests.
-- [ ] **P1: Detect missing measurements for known objects.** Distinguish an empty
+- [x] **P1: Detect missing measurements for known objects.** Distinguish an empty
   resource class from a response that omits existing objects. Cover completely
   empty and partially incomplete responses with object-level freshness checks.
 - [ ] **P2: Surface registry and duplicate-sample failures.** Detect duplicate

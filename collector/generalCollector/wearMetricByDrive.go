@@ -52,10 +52,11 @@ func (c *metricWearMetricCollector) Collect(ch chan<- prometheus.Metric) {
 	startTime := time.Now()
 	if c.isEnableBulk {
 		driveArray := client.PowerstoreModuleID[c.client.IP]
-		driveData, err := c.bulkClient.ReadCsvData("WearMetricsByDrive")
+		driveData, err := readBulkForObjects(c.bulkClient, "WearMetricsByDrive", "drive_id", driveArray["drive"], []string{"percent_endurance_remaining"})
 		if err != nil {
 			reportCollectionError(ch, err)
 			level.Warn(c.logger).Log("msg", "get driver percent endurance remaining data error", "err", err)
+			return
 		}
 		driveDataJson := gjson.Parse(driveData)
 		for _, data := range driveDataJson.Array() {
