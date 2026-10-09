@@ -78,12 +78,16 @@ func (c *fileSystemCollector) Collect(ch chan<- prometheus.Metric) {
 		filesystemDataJson := gjson.Parse(filesystemData)
 		for _, data := range filesystemDataJson.Array() {
 			filesystemID := data.Get("file_system_id").String()
-			filesystemName := filesystemArray["filesystem"][filesystemID]
+			labels, err := filesystemLabels(filesystemArray, filesystemID)
+			if err != nil {
+				reportCollectionError(ch, err)
+				continue
+			}
 			for _, metricName := range metricFileSystemCollector {
 				metricValue := data.Get(metricName)
 				metricDesc := c.metrics["filesystem"+"_"+metricName]
 				if metricValue.Exists() && metricValue.Type != gjson.Null {
-					ch <- prometheus.MustNewConstMetric(metricDesc, prometheus.GaugeValue, metricValue.Float(), filesystemName.String())
+					ch <- prometheus.MustNewConstMetric(metricDesc, prometheus.GaugeValue, metricValue.Float(), labels...)
 				}
 			}
 		}
@@ -93,7 +97,12 @@ func (c *fileSystemCollector) Collect(ch chan<- prometheus.Metric) {
 			reportCollectionError(ch, fmt.Errorf("inventory unavailable"))
 			return
 		}
-		for filesystemID, filesystemName := range moduleIDArray["filesystem"] {
+		for filesystemID := range moduleIDArray["filesystem"] {
+			labels, err := filesystemLabels(moduleIDArray, filesystemID)
+			if err != nil {
+				reportCollectionError(ch, err)
+				continue
+			}
 			filesystemData, err := c.client.GetFilesystemCap(filesystemID)
 			if err != nil {
 				reportCollectionError(ch, err)
@@ -109,7 +118,7 @@ func (c *fileSystemCollector) Collect(ch chan<- prometheus.Metric) {
 				metricValue := filesystemArray[len(filesystemArray)-1].Get(metricName)
 				metricDesc := c.metrics["filesystem_"+metricName]
 				if metricValue.Exists() && metricValue.Type != gjson.Null {
-					ch <- prometheus.MustNewConstMetric(metricDesc, prometheus.GaugeValue, metricValue.Float(), filesystemName.String())
+					ch <- prometheus.MustNewConstMetric(metricDesc, prometheus.GaugeValue, metricValue.Float(), labels...)
 				}
 			}
 		}
@@ -129,7 +138,7 @@ func getFileSystemMetrics(ip string) map[string]*prometheus.Desc {
 		res["filesystem_"+metricName] = prometheus.NewDesc(
 			"powerstore_filesystem_"+metricName,
 			getFileSystemDescByType(metricName),
-			[]string{"name"},
+			[]string{"name", "file_system_id", "nas_server_id", "nas_server_name"},
 			prometheus.Labels{"IP": ip})
 	}
 	return res

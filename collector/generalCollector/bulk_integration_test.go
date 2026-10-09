@@ -64,7 +64,7 @@ func TestFilesystemCSVToZabbixContract(t *testing.T) {
 		}
 		bc := syntheticBulk(t, "performance_metrics_by_file_system.csv", header+"\n"+row+"\n")
 		api := &client.Client{IP: bc.IP}
-		client.PowerstoreModuleID[api.IP] = map[string]map[string]gjson.Result{"filesystem": {"fs1": gjson.Parse(`"example"`)}}
+		client.PowerstoreModuleID[api.IP] = map[string]map[string]gjson.Result{"filesystem": {"fs1": gjson.Parse(`"example"`)}, "filesystem_nas": {"fs1": gjson.Parse(`"nas1"`)}, "nas": {"nas1": gjson.Parse(`"example-nas"`)}}
 		registry := prometheus.NewPedanticRegistry()
 		registry.MustRegister(Monitored(api.IP, "filesystem_performance", true, NewMetricFilesystemCollector(api, bc, log.NewNopLogger())))
 		metrics, err := registry.Gather()

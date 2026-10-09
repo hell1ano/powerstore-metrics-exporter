@@ -267,11 +267,11 @@ func (c *Client) GetDrivesId() (string, error) {
 }
 
 func (c *Client) GetNasId() (string, error) {
-	return c.getData("nas_server_list_cma_view?select=id,name&limit="+strconv.Itoa(c.limit), "GET", "")
+	return c.getData("nas_server?select=id,name&limit="+strconv.Itoa(c.limit), "GET", "")
 }
 
 func (c *Client) GetFilesystemId() (string, error) {
-	return c.getData("file_system?select=id,name&limit="+strconv.Itoa(c.limit), "GET", "")
+	return c.getData("file_system?select=id,name,nas_server_id&limit="+strconv.Itoa(c.limit), "GET", "")
 }
 
 // ModuleIDs returns an immutable snapshot; refreshes replace maps atomically.
@@ -295,6 +295,13 @@ func (c *Client) InitModuleID(logger log.Logger) {
 			continue
 		}
 		snapshot[module] = resultToMap(data)
+		if module == "filesystem" {
+			owners := make(map[string]gjson.Result)
+			for _, filesystem := range gjson.Parse(data).Array() {
+				owners[filesystem.Get("id").String()] = filesystem.Get("nas_server_id")
+			}
+			snapshot["filesystem_nas"] = owners
+		}
 	}
 	inventoryMu.Lock()
 	PowerstoreModuleID[c.IP] = snapshot
