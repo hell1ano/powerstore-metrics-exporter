@@ -113,3 +113,17 @@ Capacity uses five-minute bulk samples when bulk mode is enabled. Existing
 substitute current values for daily maxima. Non-bulk requests default to
 `capacityInterval: Five_Mins`; see [collection health](../../docs/collection-health.md)
 for the migration from the previous daily default.
+
+## Filesystem NAS ownership
+
+Filesystem capacity and performance items now display `NAS / filesystem` and carry
+NAS name, NAS ID and filesystem ID tags. Both discovery rules use `file_system_id`
+for item keys and metric selection, so equal names on different NAS servers remain
+distinct. The exporter resolves ownership through REST inventory, not bulk CSVs.
+
+Upgrade the exporter before importing this template revision. Existing filesystem
+item keys change from names to IDs; review discovered items after importing and
+rediscovery. Zabbix may create replacement items and retain the old history on the
+old items until their configured lost-resource cleanup. Do not assume history will
+be transferred automatically. Custom name-only selectors need ID matching when
+names are duplicated. The legacy Zabbix 6 template is unchanged.

@@ -202,3 +202,65 @@ func TestZabbix7StructureAndTriggers(t *testing.T) {
 		t.Error("incorrect Zabbix 7 export envelope")
 	}
 }
+
+func TestFilesystemDiscoveryUsesStableIDsAndNASNames(t *testing.T) {
+	data, err := os.ReadFile("../../templates/zabbix/zbx_export_templates_7.0.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document map[string]interface{}
+	if err = yaml.Unmarshal(data, &document); err != nil {
+		t.Fatal(err)
+	}
+	root := document["zabbix_export"].(map[string]interface{})
+	template := root["templates"].([]interface{})[0].(map[string]interface{})
+	count, items := 0, 0
+	for _, value := range template["discovery_rules"].([]interface{}) {
+		rule := value.(map[string]interface{})
+		if rule["key"] != "powerstore.filesystem.discovery" && rule["key"] != "powerstore.performance.filesystem.discovery" {
+			continue
+		}
+		count++
+		macros := map[string]string{}
+		for _, p := range rule["lld_macro_paths"].([]interface{}) {
+			path := p.(map[string]interface{})
+			macros[path["lld_macro"].(string)] = path["path"].(string)
+		}
+		for macro, label := range map[string]string{"{#FILEID}": "file_system_id", "{#NASID}": "nas_server_id", "{#NASNAME}": "nas_server_name", "{#FILENAME}": "name"} {
+			if macros[macro] != `$.labels["`+label+`"]` {
+				t.Errorf("incorrect discovery path for %s", macro)
+			}
+		}
+		for _, v := range rule["item_prototypes"].([]interface{}) {
+			item := v.(map[string]interface{})
+			items++
+			if !strings.Contains(item["key"].(string), "[{#FILEID}]") || strings.Contains(item["key"].(string), "{#FILENAME}") {
+				t.Error("filesystem item key depends on name")
+			}
+			if !strings.Contains(item["name"].(string), "{#NASNAME} / {#FILENAME}") {
+				t.Error("NAS not displayed")
+			}
+			tags := map[string]string{}
+			for _, v := range item["tags"].([]interface{}) {
+				tag := v.(map[string]interface{})
+				tags[tag["tag"].(string)] = tag["value"].(string)
+			}
+			if tags["NAS"] != "{#NASNAME}" || tags["NAS ID"] != "{#NASID}" {
+				t.Error("NAS tags missing")
+			}
+			for _, v := range item["preprocessing"].([]interface{}) {
+				step := v.(map[string]interface{})
+				if step["type"] != "PROMETHEUS_PATTERN" {
+					continue
+				}
+				selector := step["parameters"].([]interface{})[0].(string)
+				if !strings.Contains(selector, `file_system_id="{#FILEID}"`) || strings.Contains(selector, `name=`) {
+					t.Error("selector not keyed by filesystem ID")
+				}
+			}
+		}
+	}
+	if count != 2 || items != 14 {
+		t.Fatalf("unexpected filesystem discovery coverage %d/%d", count, items)
+	}
+}
