@@ -81,7 +81,11 @@ func (c *metricNasCollector) Collect(ch chan<- prometheus.Metric) {
 	level.Info(c.logger).Log("msg", "Start collecting nas https performance data")
 	startTime := time.Now()
 	if c.isEnableBulk {
-		nasArray := client.PowerstoreModuleID[c.client.IP]
+		nasArray := client.ModuleIDs(c.client.IP)
+		if nasArray["nas"] == nil {
+			reportCollectionError(ch, fmt.Errorf("inventory unavailable"))
+			return
+		}
 		nasData, err := readBulkForObjects(c.bulkClient, "PerformanceMetricsByNasServer", "nas_server_id", nasArray["nas"], metricNasCollectorMetric)
 		if err != nil {
 			reportCollectionError(ch, err)
@@ -102,7 +106,11 @@ func (c *metricNasCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 	} else {
 		var wg sync.WaitGroup
-		nasArray := client.PowerstoreModuleID[c.client.IP]
+		nasArray := client.ModuleIDs(c.client.IP)
+		if nasArray["nas"] == nil {
+			reportCollectionError(ch, fmt.Errorf("inventory unavailable"))
+			return
+		}
 		for nasId, nasName := range nasArray["nas"] {
 			wg.Add(1)
 			go func(nasId, nasName string) {

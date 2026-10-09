@@ -85,7 +85,11 @@ func (c *metricApplianceCollector) Collect(ch chan<- prometheus.Metric) {
 	level.Info(c.logger).Log("msg", "Start collecting appliance performance data")
 	startTime := time.Now()
 	if c.isEnableBulk {
-		applianceArray := client.PowerstoreModuleID[c.client.IP]
+		applianceArray := client.ModuleIDs(c.client.IP)
+		if applianceArray["appliance"] == nil {
+			reportCollectionError(ch, fmt.Errorf("inventory unavailable"))
+			return
+		}
 		applianceData, err := readBulkForObjects(c.bulkClient, "PerformanceMetricsByAppliance", "appliance_id", applianceArray["appliance"], metricAppliancePerfCollectorMetric)
 		if err != nil {
 			reportCollectionError(ch, err)
@@ -106,7 +110,11 @@ func (c *metricApplianceCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 	} else {
 		var wg sync.WaitGroup
-		applianceArray := client.PowerstoreModuleID[c.client.IP]
+		applianceArray := client.ModuleIDs(c.client.IP)
+		if applianceArray["appliance"] == nil {
+			reportCollectionError(ch, fmt.Errorf("inventory unavailable"))
+			return
+		}
 		for applianceID, applianceName := range applianceArray["appliance"] {
 			wg.Add(1)
 			go func(applianceID, applianceName string) {

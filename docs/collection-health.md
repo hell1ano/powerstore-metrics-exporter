@@ -77,3 +77,16 @@ refresh/read operations. Collector tests cover partial errors and empty results.
 
 These tests use simulated API responses. Validate real bulk archives and source
 timestamp formats on the target PowerStoreOS version before production rollout.
+
+## Inventory and pagination
+
+Inventory refreshes every five minutes and publishes an immutable snapshot. Failed
+resource queries remain unavailable rather than appearing as an empty inventory.
+Bulk collectors reject missing or unmatched objects; newly created objects can
+briefly report collection failure until the next inventory and bulk refresh agree.
+Hardware node descriptors no longer depend on the startup appliance list.
+
+GET collections follow `Content-Range` and use stable ID ordering, with a maximum
+requested page size of 2,000. Incomplete, inconsistent or failed pages fail the
+whole request. Authentication is retried once. See Dell's
+[pagination contract](https://www.dell.com/support/manuals/en-sg/powerstore-9000/pwrstr-apidevg/pagination?guid=guid-55d82d5c-baf1-4b96-9ad0-ead603800af8&lang=en-us).

@@ -64,7 +64,11 @@ func (c *fileSystemCollector) Collect(ch chan<- prometheus.Metric) {
 	level.Info(c.logger).Log("msg", "Start collecting filesystem data")
 	startTime := time.Now()
 	if c.isEnableBulk {
-		filesystemArray := client.PowerstoreModuleID[c.client.IP]
+		filesystemArray := client.ModuleIDs(c.client.IP)
+		if filesystemArray["filesystem"] == nil {
+			reportCollectionError(ch, fmt.Errorf("inventory unavailable"))
+			return
+		}
 		filesystemData, err := readBulkForObjects(c.bulkClient, "SpaceMetricsByFilesystem", "file_system_id", filesystemArray["filesystem"], metricFileSystemCollector)
 		if err != nil {
 			reportCollectionError(ch, err)
@@ -84,7 +88,11 @@ func (c *fileSystemCollector) Collect(ch chan<- prometheus.Metric) {
 			}
 		}
 	} else {
-		moduleIDArray := client.PowerstoreModuleID[c.client.IP]
+		moduleIDArray := client.ModuleIDs(c.client.IP)
+		if moduleIDArray["filesystem"] == nil {
+			reportCollectionError(ch, fmt.Errorf("inventory unavailable"))
+			return
+		}
 		for filesystemID, filesystemName := range moduleIDArray["filesystem"] {
 			filesystemData, err := c.client.GetFilesystemCap(filesystemID)
 			if err != nil {

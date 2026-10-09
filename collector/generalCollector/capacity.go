@@ -91,7 +91,11 @@ func NewCapacityCollector(api *client.Client, logger log.Logger) *capacityCollec
 func (c *capacityCollector) Collect(ch chan<- prometheus.Metric) {
 	level.Info(c.logger).Log("msg", "Start collecting capacity data")
 	startTime := time.Now()
-	applianceArray := client.PowerstoreModuleID[c.client.IP]
+	applianceArray := client.ModuleIDs(c.client.IP)
+	if applianceArray["appliance"] == nil {
+		reportCollectionError(ch, fmt.Errorf("inventory unavailable"))
+		return
+	}
 	for applianceID, _ := range applianceArray["appliance"] {
 		capacityData, err := c.client.GetCap(applianceID)
 		if err != nil {

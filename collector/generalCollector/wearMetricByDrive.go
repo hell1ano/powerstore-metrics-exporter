@@ -51,7 +51,11 @@ func (c *metricWearMetricCollector) Collect(ch chan<- prometheus.Metric) {
 	level.Info(c.logger).Log("msg", "Start collecting driver percent endurance remaining data")
 	startTime := time.Now()
 	if c.isEnableBulk {
-		driveArray := client.PowerstoreModuleID[c.client.IP]
+		driveArray := client.ModuleIDs(c.client.IP)
+		if driveArray["drive"] == nil {
+			reportCollectionError(ch, fmt.Errorf("inventory unavailable"))
+			return
+		}
 		driveData, err := readBulkForObjects(c.bulkClient, "WearMetricsByDrive", "drive_id", driveArray["drive"], []string{"percent_endurance_remaining"})
 		if err != nil {
 			reportCollectionError(ch, err)
@@ -71,7 +75,11 @@ func (c *metricWearMetricCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 	} else {
 		var wg sync.WaitGroup
-		driveArray := client.PowerstoreModuleID[c.client.IP]
+		driveArray := client.ModuleIDs(c.client.IP)
+		if driveArray["drive"] == nil {
+			reportCollectionError(ch, fmt.Errorf("inventory unavailable"))
+			return
+		}
 		for driveID, driveName := range driveArray["drive"] {
 			wg.Add(1)
 			go func(driveID, driveName string) {

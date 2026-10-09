@@ -24,6 +24,7 @@ import (
 	"github.com/tidwall/gjson"
 	"powerstore-metrics-exporter/utils"
 	"strconv"
+	"sync"
 )
 
 type RequestBody struct {
@@ -33,6 +34,9 @@ type RequestBody struct {
 }
 
 // PowerstoreModuleID This map stores the mapping relationships of the ip, module type, module id, and module name of the powerstore
+var inventoryMu sync.RWMutex
+
+// PowerstoreModuleID is retained for compatibility. Runtime readers use ModuleIDs.
 var PowerstoreModuleID = make(map[string]map[string]map[string]gjson.Result)
 
 func (c *Client) getData(path, method, body string) (string, error) {
@@ -243,7 +247,7 @@ func (c *Client) GetVolumeId() (string, error) {
 	if c.version == "v3" {
 		return c.getData("volume_list_cma_view?select=id,name&limit="+strconv.Itoa(c.limit), "GET", "")
 	}
-	return c.getData("volume?select=id,name&type=eq.Drive&limit="+strconv.Itoa(c.limit), "GET", "")
+	return c.getData("volume?select=id,name&limit="+strconv.Itoa(c.limit), "GET", "")
 }
 
 func (c *Client) GetEthPortId() (string, error) {
@@ -266,62 +270,43 @@ func (c *Client) GetFilesystemId() (string, error) {
 	return c.getData("file_system?select=id,name&limit="+strconv.Itoa(c.limit), "GET", "")
 }
 
+// ModuleIDs returns an immutable snapshot; refreshes replace maps atomically.
+func ModuleIDs(ip string) map[string]map[string]gjson.Result {
+	inventoryMu.RLock()
+	defer inventoryMu.RUnlock()
+	return PowerstoreModuleID[ip]
+}
+
 func (c *Client) InitModuleID(logger log.Logger) {
-	ModuleIdToNameMap := make(map[string]map[string]gjson.Result)
-	applianceIdToName, err := c.GetApplianceId()
-	if err != nil {
-		level.Error(logger).Log("msg", "Init appliance id list error", "err", err, "ip", c.IP)
+	snapshot := make(map[string]map[string]gjson.Result)
+	loaders := map[string]func() (string, error){
+		"appliance": c.GetApplianceId, "volume": c.GetVolumeId, "volumegroup": c.GetVolumeGroupId,
+		"ethport": c.GetEthPortId, "fcport": c.GetFcPortId, "drive": c.GetDrivesId,
+		"nas": c.GetNasId, "filesystem": c.GetFilesystemId,
 	}
-	ModuleIdToNameMap["appliance"] = resultToMap(applianceIdToName)
-
-	volumeIdToName, err := c.GetVolumeId()
-	if err != nil {
-		level.Error(logger).Log("msg", "Init volume id list error", "err", err, "ip", c.IP)
+	for module, load := range loaders {
+		data, err := load()
+		if err != nil {
+			level.Error(logger).Log("msg", "inventory refresh failed", "module", module, "err", err)
+			continue
+		}
+		snapshot[module] = resultToMap(data)
 	}
-	ModuleIdToNameMap["volume"] = resultToMap(volumeIdToName)
-
-	volumeGroupIdToName, err := c.GetVolumeGroupId()
-	if err != nil {
-		level.Error(logger).Log("msg", "Init volume group id list error", "err", err, "ip", c.IP)
-	}
-	ModuleIdToNameMap["volumegroup"] = resultToMap(volumeGroupIdToName)
-
-	ethPortIdToName, err := c.GetEthPortId()
-	if err != nil {
-		level.Error(logger).Log("msg", "Init eth port id list error", "err", err, "ip", c.IP)
-	}
-	ModuleIdToNameMap["ethport"] = resultToMap(ethPortIdToName)
-
-	fcPortIdToName, err := c.GetFcPortId()
-	if err != nil {
-		level.Error(logger).Log("msg", "Init fc port id list error", "err", err, "ip", c.IP)
-	}
-	ModuleIdToNameMap["fcport"] = resultToMap(fcPortIdToName)
-
-	drivesIdToName, err := c.GetDrivesId()
-	if err != nil {
-		level.Error(logger).Log("msg", "Init drives id list error", "err", err, "ip", c.IP)
-	}
-	ModuleIdToNameMap["drive"] = resultToMap(drivesIdToName)
-
-	nasIdToName, err := c.GetNasId()
-	if err != nil {
-		level.Error(logger).Log("msg", "Init nas https id list error", "err", err, "ip", c.IP)
-	}
-	ModuleIdToNameMap["nas"] = resultToMap(nasIdToName)
-
-	filesystemIdToName, err := c.GetFilesystemId()
-	if err != nil {
-		level.Error(logger).Log("msg", "Init filesystem https id list error", "err", err, "ip", c.IP)
-	}
-	ModuleIdToNameMap["filesystem"] = resultToMap(filesystemIdToName)
-	PowerstoreModuleID[c.IP] = ModuleIdToNameMap
+	inventoryMu.Lock()
+	PowerstoreModuleID[c.IP] = snapshot
+	inventoryMu.Unlock()
 }
 
 // resultToMap Convert http response body to map structure
 func resultToMap(result string) map[string]gjson.Result {
 	var resultMap = make(map[string]gjson.Result)
 	for _, entity := range gjson.Parse(result).Array() {
+		if entity.Get("id").String() == "" || entity.Get("name").String() == "" {
+			return nil
+		}
+		if _, duplicate := resultMap[entity.Get("id").String()]; duplicate {
+			return nil
+		}
 		resultMap[entity.Get("id").String()] = entity.Get("name")
 	}
 	return resultMap

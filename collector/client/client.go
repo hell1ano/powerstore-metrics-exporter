@@ -19,11 +19,17 @@ package client
 import (
 	"bytes"
 	"crypto/tls"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"powerstore-metrics-exporter/utils"
+	"strconv"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-kit/log"
@@ -31,6 +37,7 @@ import (
 )
 
 type Client struct {
+	authMu   sync.RWMutex
 	IP       string
 	username string
 	password string
@@ -48,8 +55,8 @@ func NewClient(config utils.Storage, logger log.Logger) (*Client, error) {
 	if config.Ip == "" || config.User == "" || config.Password == "" || config.Version == "" {
 		return nil, errors.New("please check config file ,Some parameters are null")
 	}
-	if config.Limit == 0 {
-		limit = 5000
+	if config.Limit <= 0 || config.Limit > 2000 {
+		limit = 2000
 	} else {
 		limit = config.Limit
 	}
@@ -85,6 +92,8 @@ func NewClient(config utils.Storage, logger log.Logger) (*Client, error) {
 }
 
 func (c *Client) InitLogin() error {
+	c.authMu.Lock()
+	defer c.authMu.Unlock()
 	reqUrl := c.baseUrl + "login_session"
 	request, err := http.NewRequest("GET", reqUrl, bytes.NewBuffer([]byte("")))
 	if err != nil {
@@ -116,49 +125,108 @@ func (c *Client) InitLogin() error {
 	}
 }
 
+// getResource follows Content-Range instead of assuming a configured page size
+// was honored by the array. A failed page invalidates the entire collection.
 func (c *Client) getResource(method, uri, body string) (string, error) {
-	reqUrl := c.baseUrl + uri
-	request, err := http.NewRequest(method, reqUrl, bytes.NewBuffer([]byte(body)))
+	u, err := url.Parse(uri)
 	if err != nil {
 		return "", err
 	}
-	request.Header.Set("Accept", "application/json")
-	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("DELL-EMC-TOKEN", c.token)
-	request.Header.Set("Cookie", "auth_cookie="+c.cookie)
-
-	// Added parameters in Powerstore API 4.1.0
-	request.Header.Set("dell-visibility", "Internal")
-
-	response, err := c.http.Do(request)
-	if err != nil {
-		level.Warn(c.logger).Log("msg", "Request URL error!")
-		return "", err
-	}
-
-	defer response.Body.Close()
-	switch response.StatusCode {
-	case http.StatusOK, http.StatusCreated, http.StatusPartialContent:
-		body, err := io.ReadAll(response.Body)
-		if err != nil {
-			return "", errors.New("get resource error: " + string(body))
+	query := u.Query()
+	if method == http.MethodGet {
+		limit := c.limit
+		if limit <= 0 || limit > 2000 {
+			limit = 2000
 		}
-		return string(body), nil
-	case http.StatusUnauthorized, http.StatusFound:
-		level.Warn(c.logger).Log("msg", "authentication token is invalid, relogin...", "err", err)
-		err = c.InitLogin()
+		query.Set("limit", strconv.Itoa(limit))
+		if query.Get("order") == "" {
+			query.Set("order", "id")
+		}
+	}
+	offset := 0
+	expectedTotal := -1
+	var all []json.RawMessage
+	for page := 0; page < 10000; page++ {
+		if method == http.MethodGet {
+			query.Set("offset", strconv.Itoa(offset))
+			u.RawQuery = query.Encode()
+		}
+		data, status, contentRange, err := c.requestPage(method, u.String(), body)
 		if err != nil {
-			level.Warn(c.logger).Log("msg", "init auth error", "err", err)
 			return "", err
-		} else {
-			return c.getResource(method, uri, body)
 		}
-	default:
-		body, err := io.ReadAll(response.Body)
-		if err != nil {
-			return "", errors.New("get resource error ReadAll err is not nil: " + string(body))
+		if status != http.StatusPartialContent && page == 0 && contentRange == "" {
+			return data, nil
 		}
-		return "", errors.New("get resource error ReadAll err is nil: " + string(body))
+		if method != http.MethodGet {
+			return "", fmt.Errorf("partial response for non-paginated request")
+		}
+		var rows []json.RawMessage
+		if err = json.Unmarshal([]byte(data), &rows); err != nil || !strings.HasPrefix(strings.TrimSpace(data), "[") {
+			return "", fmt.Errorf("invalid paginated collection")
+		}
+		if status == http.StatusOK && contentRange == "" && expectedTotal >= 0 && len(rows) == expectedTotal-offset {
+			all = append(all, rows...)
+			result, err := json.Marshal(all)
+			return string(result), err
+		}
+		var start, end, total int
+		// PowerStore documents Content-Range as 0-99/1000 (without a unit).
+		n, err := fmt.Sscanf(strings.TrimPrefix(contentRange, "items "), "%d-%d/%d", &start, &end, &total)
+		if err != nil || n != 3 || start != offset || end < start || end >= total || len(rows) != end-start+1 {
+			return "", fmt.Errorf("invalid pagination range")
+		}
+		if expectedTotal >= 0 && total != expectedTotal {
+			return "", fmt.Errorf("inventory changed during pagination; retry collection")
+		}
+		expectedTotal = total
+		all = append(all, rows...)
+		if end+1 == total {
+			result, err := json.Marshal(all)
+			return string(result), err
+		}
+		offset = end + 1
 	}
+	return "", fmt.Errorf("pagination exceeded safety limit")
+}
 
+func (c *Client) requestPage(method, uri, body string) (string, int, string, error) {
+	for attempt := 0; attempt < 2; attempt++ {
+		request, err := http.NewRequest(method, c.baseUrl+uri, strings.NewReader(body))
+		if err != nil {
+			return "", 0, "", err
+		}
+		request.Header.Set("Accept", "application/json")
+		request.Header.Set("Content-Type", "application/json")
+		c.authMu.RLock()
+		request.Header.Set("DELL-EMC-TOKEN", c.token)
+		request.Header.Set("Cookie", "auth_cookie="+c.cookie)
+		c.authMu.RUnlock()
+		request.Header.Set("dell-visibility", "Internal")
+		response, err := c.http.Do(request)
+		if err != nil {
+			return "", 0, "", err
+		}
+		data, readErr := io.ReadAll(response.Body)
+		response.Body.Close()
+		if readErr != nil {
+			return "", 0, "", readErr
+		}
+		if response.StatusCode == http.StatusUnauthorized || response.StatusCode == http.StatusFound {
+			if attempt == 0 {
+				if err := c.InitLogin(); err != nil {
+					return "", 0, "", err
+				}
+				continue
+			}
+			return "", 0, "", fmt.Errorf("authentication failed after retry")
+		}
+		switch response.StatusCode {
+		case http.StatusOK, http.StatusCreated, http.StatusPartialContent:
+			return string(data), response.StatusCode, response.Header.Get("Content-Range"), nil
+		default:
+			return "", 0, "", fmt.Errorf("PowerStore request failed: HTTP %d", response.StatusCode)
+		}
+	}
+	return "", 0, "", fmt.Errorf("authentication failed")
 }

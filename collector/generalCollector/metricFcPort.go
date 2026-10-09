@@ -82,7 +82,11 @@ func (c *metricFcPortCollector) Collect(ch chan<- prometheus.Metric) {
 	level.Info(c.logger).Log("msg", "Start collecting fcPort performance data")
 	startTime := time.Now()
 	if c.isEnableBulk {
-		fcPortArray := client.PowerstoreModuleID[c.client.IP]
+		fcPortArray := client.ModuleIDs(c.client.IP)
+		if fcPortArray["fcport"] == nil {
+			reportCollectionError(ch, fmt.Errorf("inventory unavailable"))
+			return
+		}
 		fcPortData, err := readBulkForObjects(c.bulkClient, "PerformanceMetricsByFeFcPort", "fe_port_id", fcPortArray["fcport"], metricFcPortCollectorMetric)
 		if err != nil {
 			reportCollectionError(ch, err)
@@ -104,7 +108,11 @@ func (c *metricFcPortCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 	} else {
 		var wg sync.WaitGroup
-		fcPortArray := client.PowerstoreModuleID[c.client.IP]
+		fcPortArray := client.ModuleIDs(c.client.IP)
+		if fcPortArray["fcport"] == nil {
+			reportCollectionError(ch, fmt.Errorf("inventory unavailable"))
+			return
+		}
 		for portId, portName := range fcPortArray["fcport"] {
 			wg.Add(1)
 			go func(portId, portName string) {

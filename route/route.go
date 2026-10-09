@@ -101,6 +101,9 @@ func Run(config *utils.Config, logger log.Logger) {
 		}
 		// Initialize the corresponding relationship between each component id and component name
 		client.InitModuleID(logger)
+		inventoryCron := cron.New(cron.WithChain(cron.SkipIfStillRunning(cron.DefaultLogger)))
+		_, _ = inventoryCron.AddFunc("@every 5m", func() { client.InitModuleID(logger) })
+		inventoryCron.Start()
 
 		// Generate the registry for each component collector
 		ClusterRegistry := prometheus.NewPedanticRegistry()

@@ -82,7 +82,11 @@ func (c *metricVgCollector) Collect(ch chan<- prometheus.Metric) {
 	level.Info(c.logger).Log("msg", "Start collecting volume group performance data")
 	startTime := time.Now()
 	if c.isEnableBulk {
-		volumeGroupArray := client.PowerstoreModuleID[c.client.IP]
+		volumeGroupArray := client.ModuleIDs(c.client.IP)
+		if volumeGroupArray["volumegroup"] == nil {
+			reportCollectionError(ch, fmt.Errorf("inventory unavailable"))
+			return
+		}
 		volumeGroupData, err := readBulkForObjects(c.bulkClient, "PerformanceMetricsByVg", "vg_id", volumeGroupArray["volumegroup"], metricVgCollectorMetric)
 		if err != nil {
 			reportCollectionError(ch, err)
@@ -103,7 +107,11 @@ func (c *metricVgCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 	} else {
 		var wg sync.WaitGroup
-		vgArray := client.PowerstoreModuleID[c.client.IP]
+		vgArray := client.ModuleIDs(c.client.IP)
+		if vgArray["volumegroup"] == nil {
+			reportCollectionError(ch, fmt.Errorf("inventory unavailable"))
+			return
+		}
 		for vgId, vgName := range vgArray["volumegroup"] {
 			wg.Add(1)
 			go func(vgId, vgName string) {

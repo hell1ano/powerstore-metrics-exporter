@@ -139,8 +139,8 @@ func getHardwareMetrics(ip string) map[string]*prometheus.Desc {
 			prometheus.Labels{"IP": ip})
 	}
 
-	for applianceID, _ := range client.PowerstoreModuleID[ip]["appliance"] {
-		res["node"+applianceID] = prometheus.NewDesc(
+	{
+		res["node"] = prometheus.NewDesc(
 			"powerstore_hardware_node_state",
 			getHardwareDescByType("lifecycle_state"),
 			[]string{"name", "serial_number", "state", "appliance_id"},
