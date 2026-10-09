@@ -72,7 +72,7 @@ func (c *hardwareCollector) Collect(ch chan<- prometheus.Metric) {
 		sn := node.Get("serial_number").String()
 		state := node.Get("lifecycle_state").String()
 		if node.Exists() && node.Type != gjson.Null {
-			metricDesc := c.metrics["node"+id]
+			metricDesc := c.metrics["node"]
 			ch <- prometheus.MustNewConstMetric(metricDesc, prometheus.GaugeValue, 0, nodeName, sn, state, id)
 		}
 	}
