@@ -62,6 +62,7 @@ func (c *hardwareCollector) Collect(ch chan<- prometheus.Metric) {
 	startTime := time.Now()
 	nodeData, err := c.client.GetHardware("Node")
 	if err != nil {
+		reportCollectionError(ch, err)
 		level.Warn(c.logger).Log("msg", "get node data error", "err", err)
 		return
 	}
@@ -79,6 +80,7 @@ func (c *hardwareCollector) Collect(ch chan<- prometheus.Metric) {
 	for _, types := range hardwareCollectorType {
 		hardwareData, err := c.client.GetHardware(types)
 		if err != nil {
+			reportCollectionError(ch, err)
 			level.Warn(c.logger).Log("msg", "get hardware data error", "err", err)
 		}
 		for _, hardware := range gjson.Parse(hardwareData).Array() {

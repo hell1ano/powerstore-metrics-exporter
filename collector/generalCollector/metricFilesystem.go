@@ -17,6 +17,7 @@
 package generalCollector
 
 import (
+	"fmt"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
@@ -95,6 +96,7 @@ func (c *metricFilesystemCollector) Collect(ch chan<- prometheus.Metric) {
 		filesystemArray := client.PowerstoreModuleID[c.client.IP]
 		filesystemData, err := c.bulkClient.ReadCsvData("PerformanceMetricsByFileSystem")
 		if err != nil {
+			reportCollectionError(ch, err)
 			level.Warn(c.logger).Log("msg", "get filesystem performance data error", "err", err)
 		}
 		filesystemDataJson := gjson.Parse(filesystemData)
@@ -118,11 +120,13 @@ func (c *metricFilesystemCollector) Collect(ch chan<- prometheus.Metric) {
 				defer wg.Done()
 				filesystemData, err := c.client.GetMetricsFilesystem(filesystemId)
 				if err != nil {
+					reportCollectionError(ch, err)
 					level.Warn(c.logger).Log("msg", "get filesystem performance data error", "err", err)
 					return
 				}
 				filesystemArray := gjson.Parse(filesystemData).Array()
 				if len(filesystemArray) == 0 {
+					reportCollectionError(ch, fmt.Errorf("no samples returned for known object"))
 					level.Warn(c.logger).Log("msg", "get filesystem performance data is null")
 					return
 				}

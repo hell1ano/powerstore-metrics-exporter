@@ -17,6 +17,7 @@
 package generalCollector
 
 import (
+	"fmt"
 	"powerstore-metrics-exporter/collector/bulkClient"
 	"powerstore-metrics-exporter/collector/client"
 	"sync"
@@ -87,6 +88,7 @@ func (c *metricApplianceCollector) Collect(ch chan<- prometheus.Metric) {
 		applianceArray := client.PowerstoreModuleID[c.client.IP]
 		applianceData, err := c.bulkClient.ReadCsvData("PerformanceMetricsByAppliance")
 		if err != nil {
+			reportCollectionError(ch, err)
 			level.Warn(c.logger).Log("msg", "get appliance performance data error", "err", err)
 		}
 		applianceDataJson := gjson.Parse(applianceData)
@@ -110,9 +112,15 @@ func (c *metricApplianceCollector) Collect(ch chan<- prometheus.Metric) {
 				defer wg.Done()
 				perfData, err := c.client.GetPerf(applianceID)
 				if err != nil {
+					reportCollectionError(ch, err)
 					level.Warn(c.logger).Log("msg", "get appliance performance data error", "err", err)
+					return
 				}
 				appliancePerformanceArray := gjson.Parse(perfData).Array()
+				if len(appliancePerformanceArray) == 0 {
+					reportCollectionError(ch, fmt.Errorf("no appliance performance samples"))
+					return
+				}
 				appliancePerformance := appliancePerformanceArray[len(appliancePerformanceArray)-1]
 				for _, metricName := range metricAppliancePerfCollectorMetric {
 					metricValue := appliancePerformance.Get(metricName)

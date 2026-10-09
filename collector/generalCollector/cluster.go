@@ -54,6 +54,7 @@ func (c *clusterCollector) Collect(ch chan<- prometheus.Metric) {
 	startTime := time.Now()
 	clusterData, err := c.client.GetCluster()
 	if err != nil {
+		reportCollectionError(ch, err)
 		level.Warn(c.logger).Log("msg", "get cluster data error", "err", err)
 		return
 	}

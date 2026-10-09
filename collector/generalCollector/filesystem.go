@@ -17,6 +17,7 @@
 package generalCollector
 
 import (
+	"fmt"
 	"github.com/tidwall/gjson"
 	"powerstore-metrics-exporter/collector/bulkClient"
 	"powerstore-metrics-exporter/collector/client"
@@ -66,6 +67,7 @@ func (c *fileSystemCollector) Collect(ch chan<- prometheus.Metric) {
 		filesystemArray := client.PowerstoreModuleID[c.client.IP]
 		filesystemData, err := c.bulkClient.ReadCsvData("SpaceMetricsByFilesystem")
 		if err != nil {
+			reportCollectionError(ch, err)
 			level.Warn(c.logger).Log("msg", "get filesystem space data error", "err", err)
 		}
 		filesystemDataJson := gjson.Parse(filesystemData)
@@ -85,11 +87,13 @@ func (c *fileSystemCollector) Collect(ch chan<- prometheus.Metric) {
 		for filesystemID, filesystemName := range moduleIDArray["filesystem"] {
 			filesystemData, err := c.client.GetFilesystemCap(filesystemID)
 			if err != nil {
+				reportCollectionError(ch, err)
 				level.Warn(c.logger).Log("msg", "get filesystem data error", "err", err)
 				return
 			}
 			filesystemArray := gjson.Parse(filesystemData).Array()
 			if len(filesystemArray) == 0 {
+				reportCollectionError(ch, fmt.Errorf("no samples returned for known object"))
 				continue
 			}
 			for _, metricName := range metricFileSystemCollector {

@@ -17,6 +17,7 @@
 package generalCollector
 
 import (
+	"fmt"
 	"powerstore-metrics-exporter/collector/bulkClient"
 	"powerstore-metrics-exporter/collector/client"
 	"sync"
@@ -74,6 +75,7 @@ func (c *metricEthPortCollector) Collect(ch chan<- prometheus.Metric) {
 		ethPortArray := client.PowerstoreModuleID[c.client.IP]
 		ethPortData, err := c.bulkClient.ReadCsvData("PerformanceMetricsByFeEthPort")
 		if err != nil {
+			reportCollectionError(ch, err)
 			level.Warn(c.logger).Log("msg", "get eth port performance data error", "err", err)
 		}
 		ethDataJson := gjson.Parse(ethPortData)
@@ -98,11 +100,13 @@ func (c *metricEthPortCollector) Collect(ch chan<- prometheus.Metric) {
 				defer wg.Done()
 				ethPortsData, err := c.client.GetMetricEthPort(portId)
 				if err != nil {
+					reportCollectionError(ch, err)
 					level.Warn(c.logger).Log("msg", "get ethPort performance data error", "err", err)
 					return
 				}
 				ethPortDataArray := gjson.Parse(ethPortsData).Array()
 				if len(ethPortDataArray) == 0 {
+					reportCollectionError(ch, fmt.Errorf("no samples returned for known object"))
 					level.Warn(c.logger).Log("msg", "get ethPort performance data is null")
 					return
 				}

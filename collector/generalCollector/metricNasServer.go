@@ -17,6 +17,7 @@
 package generalCollector
 
 import (
+	"fmt"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
@@ -83,6 +84,7 @@ func (c *metricNasCollector) Collect(ch chan<- prometheus.Metric) {
 		nasArray := client.PowerstoreModuleID[c.client.IP]
 		nasData, err := c.bulkClient.ReadCsvData("PerformanceMetricsByNasServer")
 		if err != nil {
+			reportCollectionError(ch, err)
 			level.Warn(c.logger).Log("msg", "get nas https performance data error", "err", err)
 		}
 		nasDataJson := gjson.Parse(nasData)
@@ -106,11 +108,13 @@ func (c *metricNasCollector) Collect(ch chan<- prometheus.Metric) {
 				defer wg.Done()
 				metricNasData, err := c.client.GetMetricByNas(nasId)
 				if err != nil {
+					reportCollectionError(ch, err)
 					level.Warn(c.logger).Log("msg", "get nas https performance data error", "err", err)
 					return
 				}
 				nasDataArray := gjson.Parse(metricNasData).Array()
 				if len(nasDataArray) == 0 {
+					reportCollectionError(ch, fmt.Errorf("no samples returned for known object"))
 					level.Warn(c.logger).Log("msg", "get nas https performance data is null")
 					return
 				}

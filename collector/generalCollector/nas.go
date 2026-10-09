@@ -54,6 +54,7 @@ func (c *nasCollector) Collect(ch chan<- prometheus.Metric) {
 	startTime := time.Now()
 	nasData, err := c.client.GetNas()
 	if err != nil {
+		reportCollectionError(ch, err)
 		level.Warn(c.logger).Log("msg", "get Nas data error", "err", err)
 		return
 	}

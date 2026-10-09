@@ -69,6 +69,7 @@ func (c *portCollector) Collect(ch chan<- prometheus.Metric) {
 	for _, portType := range portTypes {
 		portTypeData, err := c.client.GetPort(portType)
 		if err != nil {
+			reportCollectionError(ch, err)
 			level.Warn(c.logger).Log("msg", "get "+portType+" data error", "err", err)
 			return
 		}

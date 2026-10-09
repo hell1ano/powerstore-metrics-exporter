@@ -45,11 +45,12 @@ type Storage struct {
 }
 
 type Exporter struct {
-	Port     int    `yaml:"port"`
-	ReqLimit int    `yaml:"reqLimit"`
-	BulkDir  string `yaml:"bulkDir"`
-	BulkCron string `yaml:"bulkCron"`
-	Https    HTTPS  `yaml:"https"`
+	Port       int    `yaml:"port"`
+	ReqLimit   int    `yaml:"reqLimit"`
+	BulkDir    string `yaml:"bulkDir"`
+	BulkCron   string `yaml:"bulkCron"`
+	BulkMaxAge string `yaml:"bulkMaxAge"`
+	Https      HTTPS  `yaml:"https"`
 }
 
 type HTTPS struct {
