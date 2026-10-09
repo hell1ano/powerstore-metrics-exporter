@@ -131,3 +131,26 @@ remain distinct through their IDs.
 Zabbix dependent discovery processes the exporter response on its own schedule;
 it does not trigger an array inventory scan. `inventoryRefresh` controls the
 exporter's REST inventory requests only.
+
+## Troubleshooting unnamed or unmatched filesystems
+
+An empty exporter name does not establish that a filesystem has no name on the
+array. It can mean the metric's filesystem ID was not found in the exporter's
+inventory snapshot. Both filesystem collectors log failures at warning level with
+array IP, collector, filesystem ID, known filesystem name, NAS ID and the reason.
+For a bulk coverage failure, the error lists every affected filesystem ID. Invalid
+inventory responses log at error level with the resource class and offending IDs.
+
+Reasons distinguish an unknown filesystem ID, an empty inventory name, missing
+NAS ownership, unavailable NAS inventory, an unknown NAS ID and an empty NAS name.
+Missing samples and request errors also identify the object where known. Failures
+still set collector health to zero; no unnamed filesystem metric is emitted.
+The completion message no longer claims success after a partial failure.
+
+Logs go to standard output and the configured `log.path` (the example configuration
+uses `./powerstoreExporter.out.log`). Warning diagnostics are visible at the default
+`info` level. Search for `filesystem collection failed` or `invalid inventory response`,
+then use the reported ID with the array's read-only filesystem instance query.
+When inventory is startup-only, restart after verifying an inventory change. Logs
+contain operational identifiers and should remain private; full API responses and
+credentials are not included in these diagnostics.

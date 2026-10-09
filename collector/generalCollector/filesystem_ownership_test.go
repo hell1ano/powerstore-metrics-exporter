@@ -1,6 +1,7 @@
 package generalCollector
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/go-kit/log"
@@ -46,7 +47,8 @@ func TestFilesystemOwnershipInBothCollectionModes(t *testing.T) {
 					}
 				}))
 				defer srv.Close()
-				logger := log.NewNopLogger()
+				var logs bytes.Buffer
+				logger := log.NewLogfmtLogger(log.NewSyncWriter(&logs))
 				api, err := client.NewClient(utils.Storage{Ip: strings.TrimPrefix(srv.URL, "https://"), User: "test", Password: "test", Version: "v3", TLSInsecureSkipVerify: true}, logger)
 				if err != nil {
 					t.Fatal(err)
@@ -74,6 +76,7 @@ func TestFilesystemOwnershipInBothCollectionModes(t *testing.T) {
 						nasName = "NAS-renamed"
 					}
 					missingOwner = stage == "missing"
+					logs.Reset()
 					api.InitModuleID(logger)
 					families, err := registry.Gather()
 					if err != nil {
@@ -100,6 +103,14 @@ func TestFilesystemOwnershipInBothCollectionModes(t *testing.T) {
 						}
 					}
 					if missingOwner {
+						for _, text := range []string{"file_system_id=fs1", "file_system_id=fs2", "nas_server_id=nas1", "NAS ID absent from NAS inventory", "collector=filesystem_"} {
+							if !strings.Contains(logs.String(), text) {
+								t.Errorf("missing diagnostic %s", text)
+							}
+						}
+						if strings.Contains(logs.String(), "is successful") {
+							t.Error("false success log")
+						}
 						if health != 0 || len(seen) != 0 {
 							t.Fatal("missing ownership reported success")
 						}

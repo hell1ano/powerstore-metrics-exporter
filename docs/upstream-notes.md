@@ -113,3 +113,12 @@ is unchanged.
 The relationship was checked against the supplied PowerStore OpenAPI definition.
 The supplied schema and PDF remain outside Git. Real NAS ownership still needs
 live pilot verification; bulk CSVs alone do not contain this mapping.
+
+## Filesystem diagnostics follow-up
+
+Filesystem collection failures now log object IDs and mapping-specific reasons in
+both collection modes. Invalid startup inventory reports all offending IDs; bulk
+coverage reports every unmatched or missing object. This makes empty-name cases
+traceable without treating the exporter label as proof of an unnamed array object.
+Synthetic tests assert the emitted diagnostics and failure health. No production
+identifiers or logs are included in the commit.

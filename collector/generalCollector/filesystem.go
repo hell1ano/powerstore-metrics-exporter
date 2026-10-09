@@ -63,16 +63,19 @@ func NewFileCollector(api *client.Client, bulkApi *bulkClient.BulkClient, logger
 func (c *fileSystemCollector) Collect(ch chan<- prometheus.Metric) {
 	level.Info(c.logger).Log("msg", "Start collecting filesystem data")
 	startTime := time.Now()
+	inventory := client.ModuleIDs(c.client.IP)
+	report := func(id string, err error) {
+		reportFilesystemError(ch, c.logger, c.client.IP, "filesystem_capacity", id, inventory, err)
+	}
 	if c.isEnableBulk {
-		filesystemArray := client.ModuleIDs(c.client.IP)
+		filesystemArray := inventory
 		if filesystemArray["filesystem"] == nil {
-			reportCollectionError(ch, fmt.Errorf("inventory unavailable"))
+			report("", fmt.Errorf("inventory unavailable"))
 			return
 		}
 		filesystemData, err := readBulkForObjects(c.bulkClient, "SpaceMetricsByFilesystem", "file_system_id", filesystemArray["filesystem"], metricFileSystemCollector)
 		if err != nil {
-			reportCollectionError(ch, err)
-			level.Warn(c.logger).Log("msg", "get filesystem space data error", "err", err)
+			report("", err)
 			return
 		}
 		filesystemDataJson := gjson.Parse(filesystemData)
@@ -80,7 +83,7 @@ func (c *fileSystemCollector) Collect(ch chan<- prometheus.Metric) {
 			filesystemID := data.Get("file_system_id").String()
 			labels, err := filesystemLabels(filesystemArray, filesystemID)
 			if err != nil {
-				reportCollectionError(ch, err)
+				report(filesystemID, err)
 				continue
 			}
 			for _, metricName := range metricFileSystemCollector {
@@ -92,26 +95,25 @@ func (c *fileSystemCollector) Collect(ch chan<- prometheus.Metric) {
 			}
 		}
 	} else {
-		moduleIDArray := client.ModuleIDs(c.client.IP)
+		moduleIDArray := inventory
 		if moduleIDArray["filesystem"] == nil {
-			reportCollectionError(ch, fmt.Errorf("inventory unavailable"))
+			report("", fmt.Errorf("inventory unavailable"))
 			return
 		}
 		for filesystemID := range moduleIDArray["filesystem"] {
 			labels, err := filesystemLabels(moduleIDArray, filesystemID)
 			if err != nil {
-				reportCollectionError(ch, err)
+				report(filesystemID, err)
 				continue
 			}
 			filesystemData, err := c.client.GetFilesystemCap(filesystemID)
 			if err != nil {
-				reportCollectionError(ch, err)
-				level.Warn(c.logger).Log("msg", "get filesystem data error", "err", err)
+				report(filesystemID, err)
 				return
 			}
 			filesystemArray := gjson.Parse(filesystemData).Array()
 			if len(filesystemArray) == 0 {
-				reportCollectionError(ch, fmt.Errorf("no samples returned for known object"))
+				report(filesystemID, fmt.Errorf("no samples returned for known object"))
 				continue
 			}
 			for _, metricName := range metricFileSystemCollector {
@@ -123,7 +125,7 @@ func (c *fileSystemCollector) Collect(ch chan<- prometheus.Metric) {
 			}
 		}
 	}
-	level.Info(c.logger).Log("msg", "Obtaining the filesystem is successful", "time", time.Since(startTime))
+	level.Info(c.logger).Log("msg", "Filesystem capacity collection finished", "time", time.Since(startTime))
 }
 
 func (c *fileSystemCollector) Describe(ch chan<- *prometheus.Desc) {

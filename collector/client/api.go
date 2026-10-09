@@ -19,6 +19,7 @@ package client
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/tidwall/gjson"
@@ -291,10 +292,14 @@ func (c *Client) InitModuleID(logger log.Logger) {
 	for module, load := range loaders {
 		data, err := load()
 		if err != nil {
-			level.Error(logger).Log("msg", "inventory refresh failed", "module", module, "err", err)
+			level.Error(logger).Log("msg", "inventory refresh failed", "ip", c.IP, "module", module, "err", err)
 			continue
 		}
-		snapshot[module] = resultToMap(data)
+		snapshot[module], err = resultToMap(data)
+		if err != nil {
+			level.Error(logger).Log("msg", "invalid inventory response", "ip", c.IP, "module", module, "err", err)
+			continue
+		}
 		if module == "filesystem" {
 			owners := make(map[string]gjson.Result)
 			for _, filesystem := range gjson.Parse(data).Array() {
@@ -309,16 +314,25 @@ func (c *Client) InitModuleID(logger log.Logger) {
 }
 
 // resultToMap Convert http response body to map structure
-func resultToMap(result string) map[string]gjson.Result {
-	var resultMap = make(map[string]gjson.Result)
-	for _, entity := range gjson.Parse(result).Array() {
-		if entity.Get("id").String() == "" || entity.Get("name").String() == "" {
-			return nil
+func resultToMap(result string) (map[string]gjson.Result, error) {
+	resultMap := make(map[string]gjson.Result)
+	var failures []error
+	for row, entity := range gjson.Parse(result).Array() {
+		id := entity.Get("id").String()
+		if id == "" {
+			failures = append(failures, fmt.Errorf("inventory row %d: missing id (name=%q)", row+1, entity.Get("name").String()))
+			continue
 		}
-		if _, duplicate := resultMap[entity.Get("id").String()]; duplicate {
-			return nil
+		if entity.Get("name").String() == "" {
+			failures = append(failures, fmt.Errorf("id=%q: inventory name is empty", id))
 		}
-		resultMap[entity.Get("id").String()] = entity.Get("name")
+		if _, duplicate := resultMap[id]; duplicate {
+			failures = append(failures, fmt.Errorf("id=%q: duplicate inventory ID", id))
+		}
+		resultMap[id] = entity.Get("name")
 	}
-	return resultMap
+	if err := errors.Join(failures...); err != nil {
+		return nil, err
+	}
+	return resultMap, nil
 }

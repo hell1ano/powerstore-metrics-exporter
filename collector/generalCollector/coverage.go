@@ -1,6 +1,7 @@
 package generalCollector
 
 import (
+	"errors"
 	"fmt"
 	"powerstore-metrics-exporter/collector/bulkClient"
 
@@ -26,11 +27,18 @@ func checkObjectCoverage(data, idField string, expected map[string]gjson.Result,
 		return fmt.Errorf("inventory unavailable")
 	}
 	seen := map[string]bool{}
+	var failures []error
 	for _, row := range gjson.Parse(data).Array() {
 		id := row.Get(idField).String()
 		name, known := expected[id]
-		if !known || name.String() == "" {
-			return fmt.Errorf("sample cannot be matched to named inventory object")
+		seen[id] = true
+		if !known {
+			failures = append(failures, fmt.Errorf("%s=%q: sample ID absent from inventory", idField, id))
+			continue
+		}
+		if name.String() == "" {
+			failures = append(failures, fmt.Errorf("%s=%q: inventory name is empty", idField, id))
+			continue
 		}
 		usable := false
 		for _, metric := range metrics {
@@ -40,14 +48,13 @@ func checkObjectCoverage(data, idField string, expected map[string]gjson.Result,
 			}
 		}
 		if !usable {
-			return fmt.Errorf("object has no supported measurements")
+			failures = append(failures, fmt.Errorf("%s=%q: object has no supported measurements", idField, id))
 		}
-		seen[id] = true
 	}
 	for id := range expected {
 		if !seen[id] {
-			return fmt.Errorf("known object is missing measurements")
+			failures = append(failures, fmt.Errorf("%s=%q: known object is missing measurements", idField, id))
 		}
 	}
-	return nil
+	return errors.Join(failures...)
 }
