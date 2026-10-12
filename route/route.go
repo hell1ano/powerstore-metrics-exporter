@@ -32,14 +32,16 @@ import (
 	"time"
 )
 
-func Run(config *utils.Config, logger log.Logger) {
+func Run(config *utils.Config, logger log.Logger) error {
+	if err := validateStartup(config); err != nil {
+		return err
+	}
 	maxAge := 15 * time.Minute
 	if config.Exporter.BulkMaxAge != "" {
 		var err error
 		maxAge, err = time.ParseDuration(config.Exporter.BulkMaxAge)
 		if err != nil || maxAge <= 0 {
-			level.Error(logger).Log("msg", "bulkMaxAge must be a positive duration")
-			return
+			return fmt.Errorf("bulkMaxAge must be a positive duration")
 		}
 	}
 	r := gin.New()
@@ -50,7 +52,7 @@ func Run(config *utils.Config, logger log.Logger) {
 		if err != nil {
 			level.Error(logger).Log("msg", "init PowerStore client error", "err", err, "ip", storage.Ip)
 			if client == nil {
-				continue
+				return fmt.Errorf("initialize array %s: %w", storage.Ip, err)
 			}
 		}
 
@@ -62,8 +64,7 @@ func Run(config *utils.Config, logger log.Logger) {
 			bc.IsEnable = true
 			bc, err = bulkClient.NewBulkClient(storage, config.Exporter.BulkDir, logger)
 			if err != nil {
-				level.Error(logger).Log("msg", "init PowerStore bulk client error", "err", err, "ip", storage.Ip)
-				continue
+				return fmt.Errorf("initialize bulk client %s: %w", storage.Ip, err)
 			}
 			bc.MaxAge = maxAge
 			err = bc.BulkEnable()
@@ -97,6 +98,7 @@ func Run(config *utils.Config, logger log.Logger) {
 			} else {
 				// Start collecting bulk API data regularly
 				c.Start()
+				defer c.Stop()
 			}
 		}
 		// Initialize the corresponding relationship between each component id and component name
@@ -108,11 +110,11 @@ func Run(config *utils.Config, logger log.Logger) {
 		defer recovery.Stop()
 		inventoryCron, err := inventoryRefreshJob(config.Exporter.InventoryRefresh, func() { client.InitModuleID(logger) })
 		if err != nil {
-			level.Error(logger).Log("msg", "invalid inventoryRefresh", "err", err)
-			return
+			return err
 		}
 		if inventoryCron != nil {
 			inventoryCron.Start()
+			defer inventoryCron.Stop()
 		}
 
 		// Generate the registry for each component collector
@@ -175,21 +177,41 @@ func Run(config *utils.Config, logger log.Logger) {
 	httpPort := fmt.Sprintf(":%s", strconv.Itoa(config.Exporter.Port))
 	level.Info(logger).Log("msg", "~~~~~~~~~~~~~Start PowerStore Exporter~~~~~~~~~~~~~~")
 	level.Info(logger).Log("http-port", httpPort, "https", config.Exporter.Https.Enable)
-	// Determine whether https is enabled
 	if config.Exporter.Https.Enable {
-		if config.Exporter.Https.CrtPath == "" || config.Exporter.Https.KeyPath == "" {
-			level.Error(logger).Log("msg", "certificate missing", "crt", config.Exporter.Https.CrtPath, "key", config.Exporter.Https.KeyPath)
-		}
-		err := r.RunTLS(httpPort, config.Exporter.Https.CrtPath, config.Exporter.Https.KeyPath)
-		if err != nil {
-			level.Error(logger).Log("msg", "Service startup failed", "err", err)
-		}
-	} else {
-		err := r.Run(httpPort)
-		if err != nil {
-			level.Error(logger).Log("msg", "Service startup failed", "err", err)
+		return r.RunTLS(httpPort, config.Exporter.Https.CrtPath, config.Exporter.Https.KeyPath)
+	}
+	return r.Run(httpPort)
+}
+
+func validateStartup(config *utils.Config) error {
+	if config.Exporter.Port < 1 || config.Exporter.Port > 65535 {
+		return fmt.Errorf("exporter.port must be between 1 and 65535")
+	}
+	if len(config.StorageList) == 0 {
+		return fmt.Errorf("storageList must contain at least one array")
+	}
+	if config.Exporter.Https.Enable && (config.Exporter.Https.CrtPath == "" || config.Exporter.Https.KeyPath == "") {
+		return fmt.Errorf("HTTPS certificate and key paths are required")
+	}
+	if _, err := inventoryRefreshJob(config.Exporter.InventoryRefresh, func() {}); err != nil {
+		return err
+	}
+	if config.Exporter.BulkCron != "" {
+		if _, err := cron.ParseStandard(config.Exporter.BulkCron); err != nil {
+			return fmt.Errorf("bulkCron: %w", err)
 		}
 	}
+	seen := map[string]bool{}
+	for _, storage := range config.StorageList {
+		if storage.Ip == "" || storage.User == "" || storage.Password == "" || storage.Version == "" {
+			return fmt.Errorf("each array requires ip, user, password and apiVersion")
+		}
+		if seen[storage.Ip] {
+			return fmt.Errorf("duplicate array address %q", storage.Ip)
+		}
+		seen[storage.Ip] = true
+	}
+	return nil
 }
 
 // Inventory is always loaded at startup. Scheduling a refresh is opt-in and is

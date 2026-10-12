@@ -167,3 +167,10 @@ An omitted or zero `exporter.reqLimit` now defaults to 200 concurrent requests,
 matching the example configuration. Negative limits fail startup with an explicit
 configuration error instead of panicking. Tests verify the first request can
 acquire a slot with default and explicit limits and negative values are rejected.
+
+## Startup error propagation
+
+Invalid configuration and listener/TLS startup failures now propagate to main and
+exit nonzero. Validate ports, required array fields, duplicate addresses, schedules
+and required HTTPS paths before any array requests. Background schedules stop when
+Run returns. Synthetic tests reject invalid configurations without contacting arrays.

@@ -42,5 +42,7 @@ func init() {
 }
 
 func main() {
-	route.Run(config, loggers)
+	if err := route.Run(config, loggers); err != nil {
+		stdlog.Fatal(err)
+	}
 }
