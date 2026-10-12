@@ -22,7 +22,7 @@ exporter:
 log:
   # type：PowerStore exporter log type, optionally logfmt or json
   type: logfmt
-  # path: PowerStore exporter log output file
+  # path: Log output file, or "-" / empty for stdout only. File logging also writes to stdout.
   path: ./powerstoreExporter.out.log
   # level: Minimum log level printed by PowerStore exporter
   level: info

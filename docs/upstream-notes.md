@@ -190,3 +190,10 @@ An empty node response always fails; optional classes may be empty only when the
 inventory was successfully loaded empty. Existing startup-only discovery and failed
 class recovery apply to these inventories too. Synthetic tests cover each missing
 class, valid complete responses and legitimately empty optional classes.
+
+## Stdout-only logging
+
+Set `log.path` to `"-"` or empty for stdout-only logging. An explicit file path
+keeps dual file/stdout logging; files are created with owner-only permissions.
+Failure to open a log file reports to stderr and falls back to stdout instead of
+retaining an invalid writer. Synthetic tests cover both stdout forms and fallback.

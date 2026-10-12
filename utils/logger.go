@@ -28,15 +28,16 @@ import (
 )
 
 func GetLogger(loglevel, logPath, logfmt string) log.Logger {
-	var out *os.File
-	if logPath == "" {
-		logPath = "/var/log/Exporter/Exporter.out.log"
+	// Empty path or '-' explicitly selects stdout-only logging.
+	var writer io.Writer = os.Stdout
+	if logPath != "" && logPath != "-" {
+		out, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "cannot open log file; using stdout: %v\n", err)
+		} else {
+			writer = io.MultiWriter(os.Stdout, out)
+		}
 	}
-	out, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
-	if err != nil {
-		fmt.Printf("open log file error: %s\n", err)
-	}
-	//defer out.Close()
 	var logCreator func(io.Writer) log.Logger
 	switch strings.ToLower(logfmt) {
 	case "json":
@@ -47,7 +48,7 @@ func GetLogger(loglevel, logPath, logfmt string) log.Logger {
 		logCreator = log.NewLogfmtLogger
 	}
 
-	nw := io.MultiWriter(os.Stdout, out)
+	nw := writer
 	// create a logger
 	logger := logCreator(log.NewSyncWriter(nw))
 
