@@ -48,14 +48,16 @@ var moduleToCsvFileMap = map[string]string{
 }
 
 type BulkClient struct {
-	IsEnable  bool
-	IP        string
-	username  string
-	password  string
-	baseUrl   string
-	http      *http.Client
-	outputDir string
-	logger    log.Logger
+	activationMu sync.Mutex
+	activation   bulkActivation
+	IsEnable     bool
+	IP           string
+	username     string
+	password     string
+	baseUrl      string
+	http         *http.Client
+	outputDir    string
+	logger       log.Logger
 	// Serialize refreshes; readers hold cacheMu while reading a complete snapshot.
 	downloadMu      sync.Mutex
 	cacheMu         sync.RWMutex

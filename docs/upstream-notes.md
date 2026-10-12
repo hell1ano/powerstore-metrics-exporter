@@ -174,3 +174,10 @@ Invalid configuration and listener/TLS startup failures now propagate to main an
 exit nonzero. Validate ports, required array fields, duplicate addresses, schedules
 and required HTTPS paths before any array requests. Background schedules stop when
 Run returns. Synthetic tests reject invalid configurations without contacting arrays.
+
+## Bulk activation recovery
+
+Failed activation retries after 1, 2, 4 and then at most every 5 minutes. Successful
+activation is not repeated; a one-minute warm-up precedes the first download. The
+normal bulk schedule resumes afterward. Activation checks do not rediscover
+inventory. Synthetic clock tests verify backoff, recovery and no repeat activation.

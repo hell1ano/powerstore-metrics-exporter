@@ -67,20 +67,30 @@ func Run(config *utils.Config, logger log.Logger) error {
 				return fmt.Errorf("initialize bulk client %s: %w", storage.Ip, err)
 			}
 			bc.MaxAge = maxAge
-			err = bc.BulkEnable()
-			if err != nil {
-				level.Error(logger).Log("msg", "failed to enable batch request api", "err", err, "ip", storage.Ip)
+			activationDone := false
+			recoverBulk := func() {
+				if activationDone {
+					return
+				}
+				ready, err := bc.EnsureEnabled()
+				if err != nil {
+					level.Warn(logger).Log("msg", "bulk activation failed; retry scheduled", "ip", storage.Ip, "err", err)
+					return
+				}
+				if ready {
+					activationDone = true
+					if err := bc.DownloadBulkData(); err != nil {
+						level.Warn(logger).Log("msg", "initial bulk download failed", "ip", storage.Ip, "err", err)
+					}
+				}
 			}
-			// It takes at least one minute to start the API by opening the BULK API
-			level.Info(logger).Log("msg", "The bulk api is starting...", "ip", storage.Ip)
-			time.Sleep(60 * time.Second)
-			level.Info(logger).Log("msg", "The bulk api startup is completed", "ip", storage.Ip)
-			// Initialize download bulk api data
-			if err := bc.DownloadBulkData(); err != nil {
-				level.Error(logger).Log("msg", "error downloading batch data", "err", err, "ip", storage.Ip)
-			}
+			recoverBulk()
+			activationCron := cron.New(cron.WithChain(cron.SkipIfStillRunning(cron.DefaultLogger)))
+			_, _ = activationCron.AddFunc("@every 1m", recoverBulk)
+			activationCron.Start()
+			defer activationCron.Stop()
 			// Add timed tasks and download bulk API data regularly
-			c := cron.New()
+			c := cron.New(cron.WithChain(cron.SkipIfStillRunning(cron.DefaultLogger)))
 			var bulkCron string
 			if config.Exporter.BulkCron == "" {
 				bulkCron = "*/5 * * * *"
@@ -88,6 +98,9 @@ func Run(config *utils.Config, logger log.Logger) error {
 				bulkCron = config.Exporter.BulkCron
 			}
 			_, err = c.AddFunc(bulkCron, func() {
+				if !bc.ActivationReady() {
+					return
+				}
 				level.Info(logger).Log("msg", "Start a scheduled task", "ip", storage.Ip)
 				if err := bc.DownloadBulkData(); err != nil {
 					level.Error(logger).Log("msg", "error downloading batch data", "err", err, "ip", storage.Ip)
