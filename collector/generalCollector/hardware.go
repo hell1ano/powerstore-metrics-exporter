@@ -17,7 +17,9 @@
 package generalCollector
 
 import (
+	"fmt"
 	"powerstore-metrics-exporter/collector/client"
+	"strings"
 	"time"
 
 	"github.com/go-kit/log"
@@ -66,27 +68,34 @@ func (c *hardwareCollector) Collect(ch chan<- prometheus.Metric) {
 		level.Warn(c.logger).Log("msg", "get node data error", "err", err)
 		return
 	}
-	for _, node := range gjson.Parse(nodeData).Array() {
-		id := node.Get("appliance_id").String()
-		nodeName := node.Get("name").String()
-		sn := node.Get("serial_number").String()
-		state := node.Get("lifecycle_state").String()
-		if node.Exists() && node.Type != gjson.Null {
-			metricDesc := c.metrics["node"]
-			ch <- prometheus.MustNewConstMetric(metricDesc, prometheus.GaugeValue, 0, nodeName, sn, state, id)
+	inventory := client.ModuleIDs(c.client.IP)
+	nodeErr := checkHealthCoverage(nodeData, inventory["node"], []string{"id", "name", "appliance_id", "serial_number", "lifecycle_state"})
+	if len(gjson.Parse(nodeData).Array()) == 0 {
+		nodeErr = fmt.Errorf("node health response is empty")
+	}
+	if nodeErr != nil {
+		reportCollectionError(ch, nodeErr)
+		level.Warn(c.logger).Log("msg", "incomplete node health response", "ip", c.client.IP, "err", nodeErr)
+	} else {
+		for _, node := range gjson.Parse(nodeData).Array() {
+			id := node.Get("appliance_id").String()
+			nodeName := node.Get("name").String()
+			sn := node.Get("serial_number").String()
+			state := node.Get("lifecycle_state").String()
+			if node.Exists() && node.Type != gjson.Null {
+				metricDesc := c.metrics["node"]
+				ch <- prometheus.MustNewConstMetric(metricDesc, prometheus.GaugeValue, 0, nodeName, sn, state, id)
+			}
 		}
 	}
-	level.Info(c.logger).Log("msg", "Obtaining the node status is successful")
+
 	for _, types := range hardwareCollectorType {
 		hardwareData, err := c.client.GetHardware(types)
 		if err != nil {
 			reportCollectionError(ch, err)
 			level.Warn(c.logger).Log("msg", "get hardware data error", "err", err)
 		}
-		expected := map[string]gjson.Result{}
-		if types == "Drive" {
-			expected = client.ModuleIDs(c.client.IP)["drive"]
-		}
+		expected := inventory[strings.ToLower(types)]
 		if err := checkHealthCoverage(hardwareData, expected, []string{"id", "name", "appliance_id", "lifecycle_state"}); err != nil {
 			reportCollectionError(ch, err)
 			level.Warn(c.logger).Log("msg", "incomplete hardware health response", "ip", c.client.IP, "type", types, "err", err)
@@ -110,7 +119,7 @@ func (c *hardwareCollector) Collect(ch chan<- prometheus.Metric) {
 			}
 		}
 	}
-	level.Info(c.logger).Log("msg", "Obtaining the hardware status is successful", "time", time.Since(startTime))
+	level.Info(c.logger).Log("msg", "Hardware collection finished", "time", time.Since(startTime))
 }
 
 func (c *hardwareCollector) Describe(ch chan<- *prometheus.Desc) {

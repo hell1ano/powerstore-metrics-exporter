@@ -13,11 +13,11 @@ import (
 	"testing"
 )
 
-func TestNodeDoesNotRequireStartupInventory(t *testing.T) {
+func TestNewNodeUsesLiveApplianceLabel(t *testing.T) {
 	utils.InitReqCounter(1)
 	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Query().Get("type") == "eq.Node" {
-			fmt.Fprint(w, `[{"name":"node1","appliance_id":"new-appliance","serial_number":"synthetic","lifecycle_state":"Ready"}]`)
+			fmt.Fprint(w, `[{"id":"node1","name":"node1","appliance_id":"new-appliance","serial_number":"synthetic","lifecycle_state":"Ready"}]`)
 			return
 		}
 		fmt.Fprint(w, `[]`)
@@ -28,7 +28,7 @@ func TestNodeDoesNotRequireStartupInventory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	client.PowerstoreModuleID[api.IP] = map[string]map[string]gjson.Result{"drive": {}}
+	client.PowerstoreModuleID[api.IP] = map[string]map[string]gjson.Result{"drive": {}, "node": {}, "fan": {}, "power_supply": {}, "battery": {}}
 	defer delete(client.PowerstoreModuleID, api.IP)
 	registry := prometheus.NewPedanticRegistry()
 	registry.MustRegister(Monitored(api.IP, "hardware", false, NewHardwareCollector(api, logger)))

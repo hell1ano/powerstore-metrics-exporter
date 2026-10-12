@@ -138,7 +138,7 @@ func TestRetryOnlyFailedInventoryClasses(t *testing.T) {
 	fail := true
 	calls := map[string]int{}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		calls[r.URL.Path]++
+		calls[r.URL.Path+"?"+r.URL.Query().Get("type")]++
 		if r.URL.Path == "/file_system" {
 			if fail {
 				w.WriteHeader(503)
@@ -169,7 +169,7 @@ func TestRetryOnlyFailedInventoryClasses(t *testing.T) {
 	c.RetryMissingInventory(c.logger)
 	for path, count := range calls {
 		want := 1
-		if path == "/file_system" {
+		if path == "/file_system?" {
 			want = 2
 		}
 		if count != want {

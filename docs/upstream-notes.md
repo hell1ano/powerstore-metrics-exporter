@@ -181,3 +181,12 @@ Failed activation retries after 1, 2, 4 and then at most every 5 minutes. Succes
 activation is not repeated; a one-minute warm-up precedes the first download. The
 normal bulk schedule resumes afterward. Activation checks do not rediscover
 inventory. Synthetic clock tests verify backoff, recovery and no repeat activation.
+
+## Complete hardware coverage
+
+Startup inventory now includes nodes, fans, power supplies and batteries. Hardware
+health compares each response with its inventory and validates required node fields.
+An empty node response always fails; optional classes may be empty only when their
+inventory was successfully loaded empty. Existing startup-only discovery and failed
+class recovery apply to these inventories too. Synthetic tests cover each missing
+class, valid complete responses and legitimately empty optional classes.

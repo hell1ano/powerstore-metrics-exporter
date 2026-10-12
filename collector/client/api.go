@@ -306,6 +306,10 @@ func (c *Client) loadInventory(logger log.Logger, missingOnly bool) {
 		"appliance": c.GetApplianceId, "volume": c.GetVolumeId, "volumegroup": c.GetVolumeGroupId,
 		"ethport": c.GetEthPortId, "fcport": c.GetFcPortId, "drive": c.GetDrivesId,
 		"nas": c.GetNasId, "filesystem": c.GetFilesystemId,
+		"node":         func() (string, error) { return c.GetHardwareIDs("Node") },
+		"fan":          func() (string, error) { return c.GetHardwareIDs("Fan") },
+		"power_supply": func() (string, error) { return c.GetHardwareIDs("Power_Supply") },
+		"battery":      func() (string, error) { return c.GetHardwareIDs("Battery") },
 	}
 	for module, load := range loaders {
 		if missingOnly && snapshot[module] != nil {
@@ -356,4 +360,8 @@ func resultToMap(result string) (map[string]gjson.Result, error) {
 		return nil, err
 	}
 	return resultMap, nil
+}
+
+func (c *Client) GetHardwareIDs(kind string) (string, error) {
+	return c.getData("hardware?select=id,name&type=eq."+kind+"&limit="+strconv.Itoa(c.limit), "GET", "")
 }
