@@ -365,3 +365,13 @@ func resultToMap(result string) (map[string]gjson.Result, error) {
 func (c *Client) GetHardwareIDs(kind string) (string, error) {
 	return c.getData("hardware?select=id,name&type=eq."+kind+"&limit="+strconv.Itoa(c.limit), "GET", "")
 }
+
+func (c *Client) InventoryReady() bool {
+	snapshot := ModuleIDs(c.IP)
+	for _, module := range []string{"appliance", "volume", "volumegroup", "ethport", "fcport", "drive", "nas", "filesystem", "node", "fan", "power_supply", "battery"} {
+		if snapshot[module] == nil {
+			return false
+		}
+	}
+	return len(snapshot["appliance"]) > 0 && len(snapshot["node"]) > 0
+}

@@ -17,6 +17,7 @@
 package route
 
 import (
+	"crypto/tls"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/go-kit/log"
@@ -24,11 +25,14 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/robfig/cron/v3"
+	"net"
+	"net/http"
 	"powerstore-metrics-exporter/collector/bulkClient"
 	"powerstore-metrics-exporter/collector/client"
 	"powerstore-metrics-exporter/collector/generalCollector"
 	"powerstore-metrics-exporter/utils"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -47,8 +51,10 @@ func Run(config *utils.Config, logger log.Logger) error {
 	r := gin.New()
 	r.Use(gin.Recovery())
 	gin.SetMode(gin.ReleaseMode)
+	var initialize []func()
+	var readiness []func() bool
 	for _, storage := range config.StorageList {
-		client, err := client.NewClient(storage, logger)
+		client, err := client.NewConfiguredClient(storage, logger)
 		if err != nil {
 			level.Error(logger).Log("msg", "init PowerStore client error", "err", err, "ip", storage.Ip)
 			if client == nil {
@@ -68,7 +74,10 @@ func Run(config *utils.Config, logger log.Logger) error {
 			}
 			bc.MaxAge = maxAge
 			activationDone := false
+			var activationMu sync.Mutex
 			recoverBulk := func() {
+				activationMu.Lock()
+				defer activationMu.Unlock()
 				if activationDone {
 					return
 				}
@@ -84,7 +93,7 @@ func Run(config *utils.Config, logger log.Logger) error {
 					}
 				}
 			}
-			recoverBulk()
+			initialize = append(initialize, recoverBulk)
 			activationCron := cron.New(cron.WithChain(cron.SkipIfStillRunning(cron.DefaultLogger)))
 			_, _ = activationCron.AddFunc("@every 1m", recoverBulk)
 			activationCron.Start()
@@ -115,7 +124,12 @@ func Run(config *utils.Config, logger log.Logger) error {
 			}
 		}
 		// Initialize the corresponding relationship between each component id and component name
-		client.InitModuleID(logger)
+		initialize = append(initialize, func() {
+			if err := client.InitLogin(); err != nil {
+				level.Warn(logger).Log("msg", "initial login failed; inventory recovery remains active", "ip", storage.Ip, "err", err)
+			}
+			client.InitModuleID(logger)
+		})
 		// Check for failed classes locally; successful classes generate no API traffic.
 		recovery := cron.New(cron.WithChain(cron.SkipIfStillRunning(cron.DefaultLogger)))
 		_, _ = recovery.AddFunc("@every 1m", func() { client.RetryMissingInventory(logger) })
@@ -130,6 +144,7 @@ func Run(config *utils.Config, logger log.Logger) error {
 			defer inventoryCron.Stop()
 		}
 
+		readiness = append(readiness, func() bool { return client.InventoryReady() && (!bc.IsEnable || bc.CacheReady()) })
 		// Generate the registry for each component collector
 		ClusterRegistry := prometheus.NewPedanticRegistry()
 		PortRegistry := prometheus.NewPedanticRegistry()
@@ -178,9 +193,10 @@ func Run(config *utils.Config, logger log.Logger) error {
 			metricsGroup.GET("volumeGroup", utils.PrometheusHandler(VolumeGroupRegistry, logger))
 			metricsGroup.GET("capacity", utils.PrometheusHandler(CapacityRegistry, logger))
 		}
-		level.Info(logger).Log("msg", "The Powerstore is ready", "ip", storage.Ip)
+		level.Info(logger).Log("msg", "PowerStore metric routes registered", "ip", storage.Ip)
 	}
 
+	registerHealth(r, readiness)
 	// exporter Performance
 	r.GET("/performance", func(context *gin.Context) {
 		h := promhttp.Handler()
@@ -190,10 +206,27 @@ func Run(config *utils.Config, logger log.Logger) error {
 	httpPort := fmt.Sprintf(":%s", strconv.Itoa(config.Exporter.Port))
 	level.Info(logger).Log("msg", "~~~~~~~~~~~~~Start PowerStore Exporter~~~~~~~~~~~~~~")
 	level.Info(logger).Log("http-port", httpPort, "https", config.Exporter.Https.Enable)
+	var tlsConfig *tls.Config
 	if config.Exporter.Https.Enable {
-		return r.RunTLS(httpPort, config.Exporter.Https.CrtPath, config.Exporter.Https.KeyPath)
+		cert, err := tls.LoadX509KeyPair(config.Exporter.Https.CrtPath, config.Exporter.Https.KeyPath)
+		if err != nil {
+			return fmt.Errorf("load HTTPS certificate: %w", err)
+		}
+		tlsConfig = &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12}
 	}
-	return r.Run(httpPort)
+	listener, err := net.Listen("tcp", httpPort)
+	if err != nil {
+		return fmt.Errorf("listen: %w", err)
+	}
+	defer listener.Close()
+	if tlsConfig != nil {
+		listener = tls.NewListener(listener, tlsConfig)
+	}
+	for _, init := range initialize {
+		go init()
+	}
+	server := &http.Server{Handler: r, ReadHeaderTimeout: 10 * time.Second}
+	return server.Serve(listener)
 }
 
 func validateStartup(config *utils.Config) error {

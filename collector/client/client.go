@@ -52,6 +52,15 @@ type Client struct {
 }
 
 func NewClient(config utils.Storage, logger log.Logger) (*Client, error) {
+	c, err := NewConfiguredClient(config, logger)
+	if err != nil {
+		return nil, err
+	}
+	return c, c.InitLogin()
+}
+
+// NewConfiguredClient validates local settings without making network requests.
+func NewConfiguredClient(config utils.Storage, logger log.Logger) (*Client, error) {
 	var limit int
 	if config.Ip == "" || config.User == "" || config.Password == "" || config.Version == "" {
 		return nil, errors.New("please check config file ,Some parameters are null")
@@ -99,7 +108,7 @@ func NewClient(config utils.Storage, logger log.Logger) (*Client, error) {
 		http:             httpClient,
 		logger:           logger,
 	}
-	return client, client.InitLogin()
+	return client, nil
 }
 
 func (c *Client) InitLogin() error {

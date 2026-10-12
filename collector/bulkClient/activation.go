@@ -40,7 +40,16 @@ func (s *bulkActivation) advance(now time.Time, enable func() error) (bool, erro
 func (bc *BulkClient) EnsureEnabled() (bool, error) {
 	bc.activationMu.Lock()
 	defer bc.activationMu.Unlock()
-	return bc.activation.advance(time.Now(), bc.BulkEnable)
+	wasEnabled := bc.activation.enabled
+	ready, err := bc.activation.advance(time.Now(), bc.BulkEnable)
+	// The request itself can take time; measure delays from its completion.
+	if !wasEnabled && bc.activation.enabled {
+		bc.activation.readyAt = time.Now().Add(time.Minute)
+	}
+	if err != nil {
+		bc.activation.nextAttempt = time.Now().Add(bc.activation.delay)
+	}
+	return ready, err
 }
 
 func (bc *BulkClient) ActivationReady() bool {

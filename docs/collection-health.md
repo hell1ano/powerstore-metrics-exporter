@@ -174,3 +174,22 @@ the updated template and allow discovery to update existing items. Historical
 Mbps samples retain their old incorrect values; history is not rewritten. Legacy
 template users must also change speed items to floating point to retain fractions.
 Validation includes speed conversion and Zabbix prototype contract tests.
+
+## Process health and startup
+
+`GET /livez` returns 200 while the HTTP service is running. `GET /readyz` returns
+503 until every array has complete initial inventory (including at least one
+appliance and node), and each bulk-enabled array has a successful, fresh cache.
+It returns 200 when those conditions hold and 503 again if a bulk refresh fails
+or the cache becomes stale. Probes read local state and do not contact arrays.
+Readiness is not a live connectivity or hardware-health check: continue using
+collector health and Zabbix alerts. REST-only readiness reflects loaded inventory.
+
+Array login, inventory loading and bulk activation run in the background, so a
+slow array no longer blocks HTTP startup. Metric endpoints remain accessible while
+initializing and report their existing failure health until data is available.
+Successful inventory discovery remains startup-only by default. Failed activation
+uses capped backoff; successful activation gets a one-minute warm-up before download.
+
+Use `log.path: "-"` (or empty) for stdout-only logging. Invalid startup configuration
+and HTTP/TLS listener errors exit nonzero. Docker packaging is unchanged.

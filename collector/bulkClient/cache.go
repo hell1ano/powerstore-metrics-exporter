@@ -241,3 +241,19 @@ func (bc *BulkClient) Collect(ch chan<- prometheus.Metric) {
 		ch <- prometheus.MustNewConstMetric(bulkFresh, prometheus.GaugeValue, fresh, bc.IP, module)
 	}
 }
+
+// CacheReady describes cached-data availability; collector health additionally
+// checks object coverage and required modules for each metric endpoint.
+func (bc *BulkClient) CacheReady() bool {
+	bc.cacheMu.RLock()
+	defer bc.cacheMu.RUnlock()
+	if !bc.downloadSuccess || len(bc.modules) == 0 {
+		return false
+	}
+	for module := range bc.modules {
+		if bc.checkFreshness(module, time.Now()) != nil {
+			return false
+		}
+	}
+	return true
+}

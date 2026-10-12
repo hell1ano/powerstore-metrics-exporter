@@ -197,3 +197,17 @@ Set `log.path` to `"-"` or empty for stdout-only logging. An explicit file path
 keeps dual file/stdout logging; files are created with owner-only permissions.
 Failure to open a log file reports to stderr and falls back to stdout instead of
 retaining an invalid writer. Synthetic tests cover both stdout forms and fallback.
+
+## Nonblocking initialization and health endpoints
+
+Construct REST clients without initial network access in the route setup; retain
+the existing authenticated constructor for callers. Initialize each array in the
+background and provide `/livez` and `/readyz` using local inventory/cache state.
+Activation recovery is serialized across its initial task and timer; activation
+warm-up and retry delays start after the HTTP attempt completes. Readiness does
+not replace collector coverage checks or live alerts. Tests cover initialization,
+partial readiness, failure and recovery. Docker files remain unchanged.
+
+Validation: full local Go tests, vet and executable build passed. A synthetic
+unavailable-array process test served `/livez` (200) and `/readyz` (503) within
+five seconds; invalid bulkMaxAge exited with code 1. No live array was contacted.

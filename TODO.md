@@ -55,3 +55,15 @@ The live pilot is assigned to the operator. See [pilot steps](docs/pilot-checkli
 - [x] Default omitted/zero request limits safely and reject negative limits.
 - [ ] During the operator-led pilot, verify inventory recovery, missing-object
   alerts and the updated floating-point speed items after template reimport.
+
+## Application readiness follow-up
+
+- [x] Exit nonzero for startup/listener errors and validate configuration early.
+- [x] Retry failed bulk activation with capped backoff and respect warm-up.
+- [x] Check inventory coverage for all monitored hardware classes.
+- [x] Add stdout-only logging and safe file-open failure fallback.
+- [x] Serve liveness/readiness while arrays initialize in the background.
+- [ ] Operator pilot: verify startup during an array outage, activation recovery,
+  hardware missing-object alerts and readiness transitions.
+
+Docker packaging findings are intentionally deferred at the operator's request.
