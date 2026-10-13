@@ -1,8 +1,6 @@
-ARG ARCH="amd64"
-ARG OS="linux"
+FROM registry.access.redhat.com/ubi9-minimal:latest
 ARG PORT=9010
-FROM quay.io/prometheus/busybox-${OS}-${ARCH}:latest
-LABEL maintainer="The Prometheus Authors <prometheus-developers@googlegroups.com>"
+LABEL maintainer="The CGI Riksbank Team De Tre VISe männen"
 
 WORKDIR /powerstore_exporter
 
