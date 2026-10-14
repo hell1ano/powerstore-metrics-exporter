@@ -56,10 +56,14 @@ health flag, discovery rule or alert. No production identifiers or logs are stor
 | `/nas` | Data returned |
 | `/file` | No data; operator reports file last success as zero |
 
-Before these checks, a pre-existing old data file caused old-data complaints.
-The operator reports that manually deleting it was necessary to continue. The
-specific file and failure mechanism have not been captured; this is tracked as
-an open reported bug in the action list, separate from the filesystem failure.
+Before these checks, the operator observed
+`bulk cache has no recent successful download`, deleted an existing data file,
+and subsequently saw recovery. They clarified that deletion may have been
+coincidental with startup/NAS recovery; neither an archive-replacement bug nor
+NAS causality is established. The message indicates no successful publication
+in the current process yet, or a last successful download older than bulkMaxAge.
+Track this as an unconfirmed observation. If it recurs after startup, capture
+bulk activation/download errors and last-success time before deleting files.
 
 Next diagnostics: collect the raw `/file` response, `filesystem collection failed`
 log entries (including collector and error), and `/health` entries for
