@@ -38,9 +38,11 @@ in the trust store used by the Zabbix server/proxy and use a matching DNS hostna
 The default URL remains HTTP for compatibility with the exporter's default config.
 Verification flags take effect when an HTTPS URL is selected. The template does not
 add authentication to the exporter. If a reverse proxy requires authentication,
-configure the HTTP items accordingly. This change also does not alter the separate
-exporter-to-PowerStore TLS client; its existing certificate-verification limitation
-remains outside the scope of this template update.
+configure the HTTP items accordingly. The separate exporter-to-PowerStore connection
+also verifies certificates and hostnames by default. Configure `tlsCAFile` per array
+for an internal CA; `tlsInsecureSkipVerify: true` explicitly disables verification
+for that array's REST and bulk clients. Trust settings in Zabbix do not configure
+the exporter's trust store.
 
 ## Monitoring behavior
 
@@ -127,3 +129,23 @@ rediscovery. Zabbix may create replacement items and retain the old history on t
 old items until their configured lost-resource cleanup. Do not assume history will
 be transferred automatically. Custom name-only selectors need ID matching when
 names are duplicated. The legacy Zabbix 6 template is unchanged.
+
+## Inventory scope and refresh
+
+The exporter inventories objects at startup by default (`inventoryRefresh: "0"`).
+Optional periodic inventory refresh is separate from Zabbix discovery and HTTP
+polling. Restart or refresh inventory after object or replication-role changes.
+NAS REST status uses a per-array 60-second cache by default (`nasStatusCacheTTL`);
+requesting the endpoint does not necessarily make another PowerStore API call.
+
+Ordinary replication destination volumes/groups and snapshots are excluded.
+Local nonreplicated objects and replication sources remain monitored. Metro volumes
+remain monitored on both arrays, including the non-preferred side. Filesystem
+inventory excludes snapshots and retains Primary objects, including clones.
+Previously discovered excluded objects follow the configured lost-resource rules;
+review them after upgrading. Missing measurements for eligible sources still fail
+collection and must not be mistaken for intentionally excluded objects.
+
+The exporter now has separate client-request and PowerStore/activity logs with
+configurable rotation. See the [main README](../../README.md#logs-and-rotation)
+for paths and settings. Neither log splitting nor caching changes Zabbix item keys.
