@@ -67,3 +67,23 @@ The live pilot is assigned to the operator. See [pilot steps](docs/pilot-checkli
   hardware missing-object alerts and readiness transitions.
 
 Docker packaging findings are intentionally deferred at the operator's request.
+
+## Live pilot findings — 2026-10-14
+
+- [ ] **P1: Existing old data file prevents recovery (operator-reported bug).**
+  With a data file left from the previous deployment, the exporter reported old
+  data; the operator had to delete that file before continuing. Exact filename,
+  deployed revision, errors and root cause remain unconfirmed. Reproduce restart
+  with a pre-existing stale archive and check download, validation, replacement
+  and filesystem permissions. Recovery must accept a fresh valid replacement
+  without manual deletion while continuing to reject stale source measurements.
+  Deletion is the observed workaround, not a prescribed permanent solution.
+- [ ] **P1: Filesystem endpoint returns no data in the live pilot.** Other listed
+  endpoints return data, but `/metrics/<array>/file` reports last success as zero.
+  Obtain filesystem capacity/performance failure logs, raw collector health and
+  filesystem module freshness. Check REST inventory/NAS ownership and both bulk
+  filesystem modules. Root cause is not established; do not assume it is the same
+  as the old-file issue. Keep this open until filesystem values and recovery are
+  verified in the live pilot.
+
+See [pilot observations](docs/pilot-checklist.md#first-live-results--2026-10-14).

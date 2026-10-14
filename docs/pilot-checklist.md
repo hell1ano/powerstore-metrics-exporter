@@ -37,3 +37,32 @@ and result logs outside this public repository.
 
 Record the exporter commit, template version, pass/fail per step and any missing
 resource classes. Share only sanitized conclusions upstream.
+
+## First live results — 2026-10-14
+
+Operator-reported observations; deployed revision is not yet confirmed. These are
+endpoint data-availability results, not full validation of every metric, collector
+health flag, discovery rule or alert. No production identifiers or logs are stored.
+
+| Endpoint suffix | Observed result |
+| --- | --- |
+| `/cluster` | Data returned |
+| `/appliance` | Data returned |
+| `/capacity` | Data returned |
+| `/hardware` | Data returned |
+| `/volume` | Data returned |
+| `/volumeGroup` | Data returned |
+| `/port` | Data returned |
+| `/nas` | Data returned |
+| `/file` | No data; operator reports file last success as zero |
+
+Before these checks, a pre-existing old data file caused old-data complaints.
+The operator reports that manually deleting it was necessary to continue. The
+specific file and failure mechanism have not been captured; this is tracked as
+an open reported bug in the action list, separate from the filesystem failure.
+
+Next diagnostics: collect the raw `/file` response, `filesystem collection failed`
+log entries (including collector and error), and `/health` entries for
+`SpaceMetricsByFilesystem` and `PerformanceMetricsByFileSystem`. Record the old
+file's path/type and associated error separately. Keep original logs and archives
+private; only sanitized conclusions belong in this repository.
