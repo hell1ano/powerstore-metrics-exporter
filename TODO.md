@@ -97,3 +97,12 @@ See [pilot observations](docs/pilot-checklist.md#first-live-results--2026-10-14)
   on the host and survive container recreation. Keep stdout logging available.
   This is a requested deployment improvement; implementation and validation are
   pending. Do not commit generated logs or production configuration.
+
+## NAS polling and request visibility
+
+- [x] Cache NAS REST status per array with configurable `nasStatusCacheTTL: 60s`;
+  share refreshes and preserve failure health while limiting retries.
+- [x] Log incoming exporter callers and distinguish NAS REST refreshes from cache
+  reads; move routine NAS collection-start messages to debug.
+- [ ] Pilot: confirm repeated NAS polls generate one logical status refresh per
+  configured interval and inspect caller logs for duplicate monitoring clients.

@@ -219,3 +219,10 @@ refreshes. Cache failures without serving stale successful data, preserving fail
 health and bounding retries. Clarify NAS log sources and move routine starts to
 debug. Synthetic tests cover concurrent polls, expiry, failure reuse, recovery and
 configuration validation. No production logs or identifiers are committed.
+
+## Request visibility
+
+Log incoming exporter requests with actual socket peer, bounded User-Agent,
+endpoint, status, duration and generated response request IDs. Do not log queries,
+credentials, cookies or bodies, or trust forwarded headers as caller identity.
+Tests verify caller attribution, unique IDs and exclusion of sensitive values.

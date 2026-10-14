@@ -213,3 +213,14 @@ collectors are not cached by this NAS-specific setting.
 
 Info logs identify real NAS REST refreshes; cache hits and routine NAS collection
 starts are debug-level. Existing old configuration files receive the 60s default.
+
+## Incoming request logs
+
+Info-level `exporter HTTP request` entries show the socket peer IP, User-Agent,
+method, endpoint path, status, duration and a generated request ID also returned in
+`X-Request-ID`. Query strings, authorization headers, cookies and bodies are not
+logged. The peer may be a proxy; forwarded headers are deliberately not trusted.
+User-Agent is caller-supplied, so it is a diagnostic clue rather than proof of
+identity. Request IDs identify HTTP access entries; collector logs identify array
+and source but do not currently carry that request ID. Access logging does not
+change scrape frequency; the NAS cache controls the rate of NAS status refreshes.
