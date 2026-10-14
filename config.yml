@@ -22,8 +22,19 @@ exporter:
 log:
   # type：PowerStore exporter log type, optionally logfmt or json
   type: logfmt
-  # path: Log output file, or "-" / empty for stdout only. File logging also writes to stdout.
-  path: ./powerstoreExporter.out.log
+  # PowerStore API calls, collection diagnostics and exporter events.
+  # Empty or "-" selects stdout only.
+  path: ./logs/powerstore.log
+  # Incoming Zabbix/Prometheus requests. Omitted: insert .access before path extension.
+  accessPath: ./logs/requests.log
+  # Also copy file logs to stdout. Set false to avoid duplicate container logs.
+  stdout: true
+  # Limits apply independently to both files. Zero/omitted uses these defaults.
+  rotation:
+    maxSizeMB: 50
+    maxBackups: 5
+    maxAgeDays: 7
+    compress: true
   # level: Minimum log level printed by PowerStore exporter
   level: info
 storageList:

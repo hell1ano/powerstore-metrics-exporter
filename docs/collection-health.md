@@ -148,7 +148,7 @@ still set collector health to zero; no unnamed filesystem metric is emitted.
 The completion message no longer claims success after a partial failure.
 
 Logs go to standard output and the configured `log.path` (the example configuration
-uses `./powerstoreExporter.out.log`). Warning diagnostics are visible at the default
+uses `./logs/powerstore.log`). Warning diagnostics are visible at the default
 `info` level. Search for `filesystem collection failed` or `invalid inventory response`,
 then use the reported ID with the array's read-only filesystem instance query.
 When inventory is startup-only, restart after verifying an inventory change. Logs
@@ -259,3 +259,73 @@ Zabbix destination items follow the template's lost-resource retention settings.
 The supplied API schema says is_replication_destination is false at both ends of
 Metro volumes: this filter does not distinguish Metro endpoints. Live validation
 of the filtered endpoints on PowerStoreOS 5.0.0.2 remains required.
+
+## Separate request logs and automatic rotation
+
+`log.path` holds PowerStore calls (`stream=powerstore_api`) and collection/exporter
+messages (`stream=exporter`). `log.accessPath` holds incoming monitoring HTTP requests
+(`stream=client_request`), including peer IP, User-Agent, path, status and request ID.
+Actual outbound HTTP attempts are logged once each, including pagination, login,
+retries and bulk downloads. Cached reads do not produce outbound-call entries.
+API entries include array IP, REST/bulk kind, method, path, status and time until
+response headers arrive. Status zero with transport_error=true means no HTTP
+response. Bodies, headers, query strings and raw transport errors are omitted from
+these new request entries. Existing collection diagnostics provide failure details.
+Incoming request IDs are not propagated to scheduled or shared backend operations.
+
+The example configuration sets paths under `./logs/`. Existing `log.path` settings
+still work: if accessPath is omitted, `exporter.log` produces `exporter.access.log`.
+An empty path or `-` sends that stream to stdout; with both streams on stdout, use
+the stream field to distinguish them. Existing combined log history stays in place;
+only new incoming requests move to the access file.
+
+Each file rotates independently before exceeding maxSizeMB (default 50 MiB), keeps
+at most maxBackups (default 5) archives, and removes archives older than maxAgeDays
+(default 7) during asynchronous cleanup after opening/rotation. Compression defaults
+to true. Zero/omitted numeric limits use these bounded defaults; negatives fail
+startup. Active files are not deleted merely because seven days elapsed. Cleanup
+and compression are asynchronous, so disk usage can temporarily exceed the retained
+limit, especially when an existing oversized log is first archived. One process
+must own each pair of log files; do not share paths between replicas or combine
+this with external rotation of the same files.
+
+Missing parent directories are created when permissions allow. Failed file writes
+fall back to stdout with an stderr warning. `log.stdout: false` disables ordinary
+file-to-stdout duplication; it does not disable fallback or stdout-only streams.
+Exporter rotation does not rotate Podman's own stdout logs.
+
+### Persist logs with Podman Compose
+
+Merge this volume into the existing exporter service (keep its current image,
+configuration mount and other volumes):
+
+```yaml
+services:
+  exporter:
+    volumes:
+      - ./logs:/var/log/powerstore-exporter:Z
+```
+
+Use these settings in the mounted exporter configuration:
+
+```yaml
+log:
+  type: logfmt
+  level: info
+  path: /var/log/powerstore-exporter/powerstore.log
+  accessPath: /var/log/powerstore-exporter/requests.log
+  stdout: false
+  rotation:
+    maxSizeMB: 50
+    maxBackups: 5
+    maxAgeDays: 7
+    compress: true
+```
+
+Create the host directory before deployment (`mkdir -p ./logs`) and give the
+container's configured UID write access, accounting for rootless UID mapping.
+`:Z` labels this private mount on SELinux hosts; omit it where not applicable.
+Mount the directory, not individual files, because rotation renames files.
+Verify both host files appear, trigger a monitoring request, and confirm the
+request entry goes only into requests.log. Recreate the container and verify
+history remains. Host permissions, SELinux and persistence need a live Podman pilot.

@@ -49,7 +49,7 @@ func Run(config *utils.Config, logger log.Logger) error {
 		}
 	}
 	r := gin.New()
-	r.Use(requestLogging(logger), gin.Recovery())
+	r.Use(requestLogging(log.With(logger, "stream", "client_request")), gin.Recovery())
 	gin.SetMode(gin.ReleaseMode)
 	var initialize []func()
 	var readiness []func() bool

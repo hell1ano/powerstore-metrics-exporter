@@ -261,3 +261,15 @@ passed with timestamps normalized and an artificial selected subset. That replay
 validates CSV compatibility and selection, not actual replication roles. No private
 CSV, logs or production IDs are included. Live endpoint/filter and role-change tests
 remain for the operator; Metro endpoints are not distinguished by this flag.
+
+## Split request logging and bounded file retention
+
+Route incoming monitoring requests into a separate access log. Instrument both
+REST and bulk HTTP transports to identify actual outgoing calls, including retries
+and pagination, without logging request secrets or consuming responses. Existing
+collection diagnostics remain in the PowerStore/activity log. Add independently
+rotated files with configurable size, backup count, retention age and compression
+using pinned lumberjack v2.2.1. Preserve old path settings by deriving a sibling
+access filename; allow stdout duplication to be disabled. Test concurrent stream
+routing, transport success/failure and secret exclusion, oversized existing-file
+rotation, backup retention and invalid settings. Document Podman directory mounts.

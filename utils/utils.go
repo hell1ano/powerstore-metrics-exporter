@@ -72,10 +72,20 @@ type HTTPS struct {
 	KeyPath string `yaml:"keyPath"`
 }
 
+type Rotation struct {
+	MaxSizeMB  int   `yaml:"maxSizeMB"`
+	MaxBackups int   `yaml:"maxBackups"`
+	MaxAgeDays int   `yaml:"maxAgeDays"`
+	Compress   *bool `yaml:"compress"`
+}
+
 type Logs struct {
-	Type  string `yaml:"type"`
-	Path  string `yaml:"path"`
-	Level string `yaml:"level"`
+	AccessPath string   `yaml:"accessPath"`
+	Stdout     *bool    `yaml:"stdout"`
+	Rotation   Rotation `yaml:"rotation"`
+	Type       string   `yaml:"type"`
+	Path       string   `yaml:"path"`
+	Level      string   `yaml:"level"`
 }
 
 type Config struct {

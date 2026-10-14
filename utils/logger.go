@@ -17,27 +17,15 @@
 package utils
 
 import (
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"io"
-	"os"
 	"strings"
 	"time"
 )
 
-func GetLogger(loglevel, logPath, logfmt string) log.Logger {
-	// Empty path or '-' explicitly selects stdout-only logging.
-	var writer io.Writer = os.Stdout
-	if logPath != "" && logPath != "-" {
-		out, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "cannot open log file; using stdout: %v\n", err)
-		} else {
-			writer = io.MultiWriter(os.Stdout, out)
-		}
-	}
+func formatLogger(loglevel, logfmt string, writer io.Writer) log.Logger {
 	var logCreator func(io.Writer) log.Logger
 	switch strings.ToLower(logfmt) {
 	case "json":
@@ -69,7 +57,7 @@ func GetLogger(loglevel, logPath, logfmt string) log.Logger {
 	logger = level.NewFilter(logger, loglevelFilterOpt)
 	logger = log.With(logger,
 		"ts", log.TimestampFormat(time.Now, time.RFC3339),
-		"caller", log.DefaultCaller,
+		"caller", log.Caller(4),
 	)
 	return logger
 }

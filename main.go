@@ -35,13 +35,19 @@ func init() {
 	flag.StringVar(&configPath, "c", "config.yml", "powerstore exporter configuration file path")
 	flag.Parse()
 	config = utils.GetConfig(configPath)
-	loggers = utils.GetLogger(config.Log.Level, config.Log.Path, config.Log.Type)
 	if err := utils.InitReqCounter(config.Exporter.ReqLimit); err != nil {
 		stdlog.Fatal(err)
 	}
 }
 
 func main() {
+	var err error
+	var closeLogs func()
+	loggers, closeLogs, err = utils.NewLoggers(config.Log)
+	if err != nil {
+		stdlog.Fatal(err)
+	}
+	defer closeLogs()
 	if err := route.Run(config, loggers); err != nil {
 		stdlog.Fatal(err)
 	}

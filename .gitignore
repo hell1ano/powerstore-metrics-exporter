@@ -6,3 +6,8 @@
 *.zip
 *.tar.gz
 *.tgz
+
+# Local operational logs and rotated backups.
+/logs/
+*.log
+*.log.gz

@@ -138,3 +138,12 @@ workaround; that reported issue remains open. Production logs remain private.
   earlier volume/group findings open until live recovery is confirmed.
 - [ ] Check Metro scope separately: the destination flag is false at both ends.
   Verify eligibility after role changes and inventory refresh.
+
+
+## Separate logs and retention
+
+- [x] Separate incoming client requests from PowerStore/API and exporter activity.
+- [x] Add configurable size rotation, bounded backups, age cleanup and compression.
+- [x] Document host directory mounts and disabling duplicate stdout output.
+- [ ] Pilot host permissions, SELinux, persistence and rotation in Podman.
+- [x] Metro policy confirmed: retain monitoring on both local Metro endpoints.
