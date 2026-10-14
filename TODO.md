@@ -87,3 +87,13 @@ Docker packaging findings are intentionally deferred at the operator's request.
   verified in the live pilot.
 
 See [pilot observations](docs/pilot-checklist.md#first-live-results--2026-10-14).
+
+## Requested deployment improvements
+
+- [ ] **Persist exporter log files on the host filesystem.** Document and validate
+  a Podman bind mount from a host log directory to the container log directory,
+  with `log.path` pointing inside that mount. Cover rootless/container-user write
+  permissions and SELinux labeling where applicable. Verify logs remain accessible
+  on the host and survive container recreation. Keep stdout logging available.
+  This is a requested deployment improvement; implementation and validation are
+  pending. Do not commit generated logs or production configuration.
