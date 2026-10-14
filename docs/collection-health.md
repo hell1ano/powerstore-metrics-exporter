@@ -237,3 +237,25 @@ filesystem error summaries repeat no more than once per five minutes, while heal
 metrics continue to indicate failure on every affected scrape. Successful recovery
 resets the log suppression. Large-volume diagnostic changes supersede the earlier
 statement that every offending ID is included in each log entry.
+
+## Source-only volume monitoring
+
+Volume and volume-group inventory uses the local canonical REST resources with
+`type=in.(Primary,Clone)&is_replication_destination=eq.false`. This includes local
+nonreplicated objects and replication sources; it excludes replication destinations,
+snapshots and proxies. Volume status uses the same REST filter. Volume-group capacity
+continues to use the CMA view, restricted to the selected local inventory IDs.
+
+Bulk volume/group performance rows outside that inventory are ignored, including
+unknown IDs. Selected objects must still have supported numeric measurements;
+missing measurements remain collection failures. A successfully loaded empty
+eligible inventory produces no performance samples without requiring a bulk module.
+No cross-array lookup or source_id remapping is performed.
+
+Inventory is startup-only by default. Restart after replication role changes or
+configure inventoryRefresh to refresh eligibility periodically. Previously discovered
+Zabbix destination items follow the template's lost-resource retention settings.
+
+The supplied API schema says is_replication_destination is false at both ends of
+Metro volumes: this filter does not distinguish Metro endpoints. Live validation
+of the filtered endpoints on PowerStoreOS 5.0.0.2 remains required.

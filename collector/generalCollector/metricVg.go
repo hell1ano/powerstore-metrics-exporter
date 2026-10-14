@@ -87,7 +87,7 @@ func (c *metricVgCollector) Collect(ch chan<- prometheus.Metric) {
 			reportCollectionError(ch, fmt.Errorf("inventory unavailable"))
 			return
 		}
-		volumeGroupData, err := readBulkForObjects(c.bulkClient, "PerformanceMetricsByVg", "vg_id", volumeGroupArray["volumegroup"], metricVgCollectorMetric)
+		volumeGroupData, err := readBulkForMonitoredObjects(c.bulkClient, "PerformanceMetricsByVg", "vg_id", volumeGroupArray["volumegroup"], metricVgCollectorMetric)
 		if err != nil {
 			reportCollectionError(ch, err)
 			level.Warn(c.logger).Log("msg", "get volume group performance data error", "err", err)

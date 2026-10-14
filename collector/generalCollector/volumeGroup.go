@@ -60,6 +60,12 @@ func (c *volumeGroupCollector) Collect(ch chan<- prometheus.Metric) {
 		level.Warn(c.logger).Log("msg", "get volume group data error", "err", err)
 		return
 	}
+	volumeGroupData, err = selectMonitoredRows(volumeGroupData, "id", client.ModuleIDs(c.client.IP)["volumegroup"])
+	if err != nil {
+		reportCollectionError(ch, err)
+		level.Warn(c.logger).Log("msg", "source volume group inventory unavailable", "ip", c.client.IP, "err", err)
+		return
+	}
 	for _, volumeGroup := range gjson.Parse(volumeGroupData).Array() {
 		name := volumeGroup.Get("name").String()
 		for _, applianceID := range volumeGroup.Get("appliance_ids").Array() {

@@ -246,3 +246,18 @@ filesystem failure summaries are logged once per five minutes per collector; a
 changed summary or failure after successful recovery logs immediately. Failure
 health is still emitted on every affected scrape. Synthetic tests cover thousands
 of missing IDs, deterministic summaries, reminders and retained failure health.
+
+## Source-only volume and volume-group scope
+
+Replace CMA volume inventory with canonical local REST inventory filtered by
+Primary/Clone and is_replication_destination=false. Apply the same eligibility to
+volume-group inventory, capacity and performance. Bulk rows outside the selected
+inventory no longer fail coverage, while missing selected-object measurements still
+fail. Do not infer ownership from source_id or correlate arrays.
+
+Tests cover REST query filters, excluded bulk rows, missing selected measurements,
+missing IDs and empty/unavailable inventory. A private single-array CSV replay also
+passed with timestamps normalized and an artificial selected subset. That replay
+validates CSV compatibility and selection, not actual replication roles. No private
+CSV, logs or production IDs are included. Live endpoint/filter and role-change tests
+remain for the operator; Metro endpoints are not distinguished by this flag.

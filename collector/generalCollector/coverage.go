@@ -1,6 +1,7 @@
 package generalCollector
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"powerstore-metrics-exporter/collector/bulkClient"
@@ -124,4 +125,46 @@ func summarizeCoverageFailures(failures []error) error {
 		}
 	}
 	return fmt.Errorf("%d coverage failures (showing %d): %s", len(messages), shown, strings.Join(messages[:shown], "; "))
+}
+
+// Source-only inventory is an explicit local allowlist. Bulk archives can also
+// contain excluded destinations, snapshots or IDs not present on this array.
+// Never remap those IDs to a source on another array.
+func selectMonitoredRows(data, idField string, expected map[string]gjson.Result) (string, error) {
+	if expected == nil {
+		return "", fmt.Errorf("inventory unavailable")
+	}
+	rows := make([]json.RawMessage, 0)
+	for _, row := range gjson.Parse(data).Array() {
+		id := row.Get(idField).String()
+		if id == "" {
+			return "", fmt.Errorf("sample has no %s", idField)
+		}
+		if _, ok := expected[id]; ok {
+			rows = append(rows, json.RawMessage(row.Raw))
+		}
+	}
+	selected, err := json.Marshal(rows)
+	return string(selected), err
+}
+
+func readBulkForMonitoredObjects(bc *bulkClient.BulkClient, module, idField string, expected map[string]gjson.Result, metrics []string) (string, error) {
+	if expected == nil {
+		return "", fmt.Errorf("inventory unavailable")
+	}
+	if len(expected) == 0 {
+		return "[]", nil
+	}
+	data, err := bc.ReadCsvData(module)
+	if err != nil {
+		return "", err
+	}
+	data, err = selectMonitoredRows(data, idField, expected)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", module, err)
+	}
+	if err = checkObjectCoverage(data, idField, expected, metrics); err != nil {
+		return "", fmt.Errorf("%s: %w", module, err)
+	}
+	return data, nil
 }

@@ -126,3 +126,15 @@ See [pilot observations](docs/pilot-checklist.md#first-live-results--2026-10-14)
 NAS performance recovered after startup in the full log. No download or file
 replacement errors in that capture establish the cause of the earlier stale-file
 workaround; that reported issue remains open. Production logs remain private.
+
+
+## Source-only monitoring policy
+
+- [x] Select local Primary/Clone volumes and groups with
+  is_replication_destination=false; omit other objects without cross-array joins.
+- [x] Test selected-source coverage and replay private CSVs using an artificial
+  eligible subset and normalized timestamps; no production data committed.
+- [ ] Pilot: verify inventory, performance and capacity after restart. Keep the
+  earlier volume/group findings open until live recovery is confirmed.
+- [ ] Check Metro scope separately: the destination flag is false at both ends.
+  Verify eligibility after role changes and inventory refresh.

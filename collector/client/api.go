@@ -62,11 +62,11 @@ func (c *Client) GetHardware(hardwareType string) (string, error) {
 	return c.getData("hardware?select=*&type=eq."+hardwareType+"&limit="+strconv.Itoa(c.limit), "GET", "")
 }
 
+// Monitor local primary/clone objects, never replication destinations or snapshots.
+const sourceObjectFilter = "type=in.(Primary,Clone)&is_replication_destination=eq.false"
+
 func (c *Client) GetVolume() (string, error) {
-	if c.version == "v3" {
-		return c.getData("volume_list_cma_view?select=*&limit="+strconv.Itoa(c.limit), "GET", "")
-	}
-	return c.getData("volume?select=*&limit="+strconv.Itoa(c.limit), "GET", "")
+	return c.getData("volume?select=*&"+sourceObjectFilter+"&limit="+strconv.Itoa(c.limit), "GET", "")
 }
 
 func (c *Client) GetAppliance() (string, error) {
@@ -247,14 +247,11 @@ func (c *Client) GetApplianceId() (string, error) {
 }
 
 func (c *Client) GetVolumeGroupId() (string, error) {
-	return c.getData("volume_group_list_cma_view?select=id,name,appliance_ids&limit="+strconv.Itoa(c.limit), "GET", "")
+	return c.getData("volume_group?select=id,name&"+sourceObjectFilter+"&limit="+strconv.Itoa(c.limit), "GET", "")
 }
 
 func (c *Client) GetVolumeId() (string, error) {
-	if c.version == "v3" {
-		return c.getData("volume_list_cma_view?select=id,name&limit="+strconv.Itoa(c.limit), "GET", "")
-	}
-	return c.getData("volume?select=id,name&limit="+strconv.Itoa(c.limit), "GET", "")
+	return c.getData("volume?select=id,name&"+sourceObjectFilter+"&limit="+strconv.Itoa(c.limit), "GET", "")
 }
 
 func (c *Client) GetEthPortId() (string, error) {
