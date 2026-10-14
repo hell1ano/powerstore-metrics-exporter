@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"powerstore-metrics-exporter/collector/bulkClient"
+	"sort"
+	"strings"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -59,7 +61,7 @@ func checkObjectCoverage(data, idField string, expected map[string]gjson.Result,
 			failures = append(failures, fmt.Errorf("%s=%q: known object is missing measurements", idField, id))
 		}
 	}
-	return errors.Join(failures...)
+	return summarizeCoverageFailures(failures)
 }
 
 // Optional fields may be absent, but a known object must have a numeric sample.
@@ -99,4 +101,27 @@ func checkHealthCoverage(data string, expected map[string]gjson.Result, fields [
 		}
 	}
 	return errors.Join(failures...)
+}
+
+// Keep coverage failures deterministic and bounded even for thousands of IDs.
+func summarizeCoverageFailures(failures []error) error {
+	if len(failures) == 0 {
+		return nil
+	}
+	messages := make([]string, len(failures))
+	for i, err := range failures {
+		messages[i] = err.Error()
+	}
+	sort.Strings(messages)
+	const limit = 10
+	shown := len(messages)
+	if shown > limit {
+		shown = limit
+	}
+	for i := 0; i < shown; i++ {
+		if len(messages[i]) > 300 {
+			messages[i] = messages[i][:300] + "..."
+		}
+	}
+	return fmt.Errorf("%d coverage failures (showing %d): %s", len(messages), shown, strings.Join(messages[:shown], "; "))
 }

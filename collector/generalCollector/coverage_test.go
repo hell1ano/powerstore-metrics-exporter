@@ -1,6 +1,7 @@
 package generalCollector
 
 import (
+	"fmt"
 	"github.com/tidwall/gjson"
 	"strings"
 	"testing"
@@ -39,5 +40,21 @@ func TestObjectCoverage(t *testing.T) {
 				t.Fatalf("unexpected coverage: %v", err)
 			}
 		})
+	}
+}
+
+func TestCoverageSummaryIsBoundedAndStable(t *testing.T) {
+	expected := map[string]gjson.Result{}
+	for i := 0; i < 7000; i++ {
+		expected[fmt.Sprintf("fs-%05d", i)] = gjson.Parse(`"filesystem"`)
+	}
+	first := checkObjectCoverage(`[]`, "file_system_id", expected, []string{"value"}).Error()
+	if len(first) > 3500 || !strings.Contains(first, "7000 coverage failures (showing 10)") {
+		t.Fatalf("unbounded or missing count: length %d", len(first))
+	}
+	for i := 0; i < 5; i++ {
+		if got := checkObjectCoverage(`[]`, "file_system_id", expected, []string{"value"}).Error(); got != first {
+			t.Fatal("map order changed summary")
+		}
 	}
 }

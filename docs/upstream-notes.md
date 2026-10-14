@@ -237,3 +237,12 @@ unknown-ID and ownership checks remain enforced. Synthetic tests verify the quer
 filter and retained NAS ownership. Rebuild and restart to reload inventory before
 retesting both filesystem collectors. The pilot must establish whether any other
 missing objects remain; not every missing ID was individually verified.
+
+## Bounded coverage diagnostics
+
+Bulk coverage diagnostics now report the total failure count and up to ten sorted
+examples (each bounded in length), replacing unbounded joined ID lists. Identical
+filesystem failure summaries are logged once per five minutes per collector; a
+changed summary or failure after successful recovery logs immediately. Failure
+health is still emitted on every affected scrape. Synthetic tests cover thousands
+of missing IDs, deterministic summaries, reminders and retained failure health.

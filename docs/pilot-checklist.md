@@ -66,3 +66,16 @@ log entries (including collector and error), and `/health` entries for
 `SpaceMetricsByFilesystem` and `PerformanceMetricsByFileSystem`. Record the old
 file's path/type and associated error separately. Keep original logs and archives
 private; only sanitized conclusions belong in this repository.
+
+## Follow-up full-log review
+
+The longer private log shows that NAS performance recovers after initialization,
+but filesystem capacity/performance fail strict coverage. The operator identified
+one missing filesystem object as Snapshot; the exporter now filters inventory to
+Primary. Rebuild and restart, then check both filesystem collector-success values,
+filesystem values and NAS labels. Unexplained missing primary data must still fail.
+
+The log also shows volume performance inventory mismatches and missing volume-group
+measurements on repeated checks. Earlier data-returned results for `/volume` and
+`/volumeGroup` apply to endpoint availability only, not performance completeness.
+These remain open pilot issues. No raw logs or object identifiers are included here.

@@ -21,6 +21,7 @@ import (
 	"github.com/tidwall/gjson"
 	"powerstore-metrics-exporter/collector/bulkClient"
 	"powerstore-metrics-exporter/collector/client"
+	"sync/atomic"
 	"time"
 
 	"github.com/go-kit/log"
@@ -42,6 +43,7 @@ var metricFileSystemDescMap = map[string]string{
 }
 
 type fileSystemCollector struct {
+	failureLog   filesystemFailureLog
 	client       *client.Client
 	isEnableBulk bool
 	bulkClient   *bulkClient.BulkClient
@@ -64,8 +66,15 @@ func (c *fileSystemCollector) Collect(ch chan<- prometheus.Metric) {
 	level.Info(c.logger).Log("msg", "Start collecting filesystem data")
 	startTime := time.Now()
 	inventory := client.ModuleIDs(c.client.IP)
+	var failed atomic.Bool
+	defer func() {
+		if !failed.Load() {
+			c.failureLog.reset()
+		}
+	}()
 	report := func(id string, err error) {
-		reportFilesystemError(ch, c.logger, c.client.IP, "filesystem_capacity", id, inventory, err)
+		failed.Store(true)
+		reportFilesystemError(ch, c.logger, c.client.IP, "filesystem_capacity", id, inventory, err, &c.failureLog)
 	}
 	if c.isEnableBulk {
 		filesystemArray := inventory
@@ -117,6 +126,7 @@ func (c *fileSystemCollector) Collect(ch chan<- prometheus.Metric) {
 				continue
 			}
 			if !requireMeasurements(ch, c.logger, c.client.IP, filesystemID, filesystemArray[len(filesystemArray)-1], metricFileSystemCollector) {
+				failed.Store(true)
 				continue
 			}
 			for _, metricName := range metricFileSystemCollector {

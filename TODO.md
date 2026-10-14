@@ -106,3 +106,23 @@ See [pilot observations](docs/pilot-checklist.md#first-live-results--2026-10-14)
   reads; move routine NAS collection-start messages to debug.
 - [ ] Pilot: confirm repeated NAS polls generate one logical status refresh per
   configured interval and inspect caller logs for duplicate monitoring clients.
+
+## Full-log review and filesystem fix
+
+- [x] Exclude Snapshot objects from monitored filesystem inventory using the
+  documented Primary filter (which includes clones); preserve NAS ownership.
+- [x] Bound bulk coverage errors and suppress unchanged repeated filesystem logs
+  without suppressing collection-failure health.
+- [ ] Rebuild/restart and retest filesystem capacity and performance after filtering;
+  the operator confirmed one missing object was Snapshot, not every missing ID.
+- [ ] **P1: Volume performance inventory mismatch.** Full pilot log shows both
+  metric IDs absent from inventory and known inventory objects missing measurements
+  on repeated checks. Inspect the volume inventory endpoint and object eligibility;
+  status data availability does not establish performance-collector success.
+- [ ] **P1: Volume-group performance coverage.** Repeated pilot checks show four
+  known groups missing measurements. Verify group eligibility and metric source
+  before changing coverage rules. Keep this separate from the filesystem fix.
+
+NAS performance recovered after startup in the full log. No download or file
+replacement errors in that capture establish the cause of the earlier stale-file
+workaround; that reported issue remains open. Production logs remain private.

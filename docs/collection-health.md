@@ -224,3 +224,16 @@ User-Agent is caller-supplied, so it is a diagnostic clue rather than proof of
 identity. Request IDs identify HTTP access entries; collector logs identify array
 and source but do not currently carry that request ID. Access logging does not
 change scrape frequency; the NAS cache controls the rate of NAS status refreshes.
+
+## Filesystem scope and diagnostic volume
+
+Filesystem inventory requests `filesystem_type=eq.Primary`, covering normal
+filesystems and clones, excluding snapshots. Restart after upgrading so the
+startup inventory uses this filter. Primary-filesystem coverage and ownership
+checks remain strict; unknown metric IDs are not silently ignored.
+
+Bulk coverage errors show a total count and at most ten sorted examples. Identical
+filesystem error summaries repeat no more than once per five minutes, while health
+metrics continue to indicate failure on every affected scrape. Successful recovery
+resets the log suppression. Large-volume diagnostic changes supersede the earlier
+statement that every offending ID is included in each log entry.
