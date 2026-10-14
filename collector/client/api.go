@@ -274,7 +274,7 @@ func (c *Client) GetNasId() (string, error) {
 }
 
 func (c *Client) GetFilesystemId() (string, error) {
-	return c.getData("file_system?select=id,name,nas_server_id&limit="+strconv.Itoa(c.limit), "GET", "")
+	return c.getData("file_system?filesystem_type=eq.Primary&select=id,name,nas_server_id&limit="+strconv.Itoa(c.limit), "GET", "")
 }
 
 // ModuleIDs returns an immutable snapshot; refreshes replace maps atomically.

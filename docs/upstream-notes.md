@@ -226,3 +226,14 @@ Log incoming exporter requests with actual socket peer, bounded User-Agent,
 endpoint, status, duration and generated response request IDs. Do not log queries,
 credentials, cookies or bodies, or trust forwarded headers as caller identity.
 Tests verify caller attribution, unique IDs and exclusion of sensitive values.
+
+## Filesystem snapshot inventory correction
+
+The live pilot confirmed that a missing filesystem ID was a snapshot. Restrict
+REST filesystem inventory to `filesystem_type=eq.Primary`; the supplied API schema
+includes normal filesystems and clones in Primary. Snapshots are no longer expected
+to have filesystem performance/capacity measurements. Existing missing-primary,
+unknown-ID and ownership checks remain enforced. Synthetic tests verify the query
+filter and retained NAS ownership. Rebuild and restart to reload inventory before
+retesting both filesystem collectors. The pilot must establish whether any other
+missing objects remain; not every missing ID was individually verified.
