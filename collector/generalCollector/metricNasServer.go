@@ -78,7 +78,7 @@ func NewMetricNasCollector(api *client.Client, bulkApi *bulkClient.BulkClient, l
 }
 
 func (c *metricNasCollector) Collect(ch chan<- prometheus.Metric) {
-	level.Info(c.logger).Log("msg", "Start collecting nas https performance data")
+	level.Debug(c.logger).Log("msg", "Collecting NAS performance", "ip", c.client.IP, "bulk_cache", c.isEnableBulk)
 	startTime := time.Now()
 	if c.isEnableBulk {
 		nasArray := client.ModuleIDs(c.client.IP)
@@ -89,7 +89,7 @@ func (c *metricNasCollector) Collect(ch chan<- prometheus.Metric) {
 		nasData, err := readBulkForObjects(c.bulkClient, "PerformanceMetricsByNasServer", "nas_server_id", nasArray["nas"], metricNasCollectorMetric)
 		if err != nil {
 			reportCollectionError(ch, err)
-			level.Warn(c.logger).Log("msg", "get nas https performance data error", "err", err)
+			level.Warn(c.logger).Log("msg", "NAS performance collection failed", "err", err)
 			return
 		}
 		nasDataJson := gjson.Parse(nasData)
@@ -118,7 +118,7 @@ func (c *metricNasCollector) Collect(ch chan<- prometheus.Metric) {
 				metricNasData, err := c.client.GetMetricByNas(nasId)
 				if err != nil {
 					reportCollectionError(ch, err)
-					level.Warn(c.logger).Log("msg", "get nas https performance data error", "err", err)
+					level.Warn(c.logger).Log("msg", "NAS performance collection failed", "err", err)
 					return
 				}
 				nasDataArray := gjson.Parse(metricNasData).Array()

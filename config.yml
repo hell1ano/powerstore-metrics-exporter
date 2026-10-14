@@ -40,6 +40,8 @@ storageList:
     # bulkCollector：Whether to enable PowerStore manager bulk api to collect data
     # This value must be set to true for PowerStore OS versions 4.1.0.0 and above. It must also be set to true if data retrieval times out due to a large number of volumes, file systems, or similar resources
     bulkCollector: false
+    # Cache NAS REST status (including failures); refresh on the next poll after expiry.
+    nasStatusCacheTTL: 60s
     # Verify the array certificate and hostname for both REST and bulk requests.
     tlsInsecureSkipVerify: false
     # Optional PEM CA bundle for an internal certificate authority.
@@ -52,6 +54,8 @@ storageList:
     apiVersion: v3
     apiLimit: 2000
     bulkCollector: false
+    # Cache NAS REST status (including failures); refresh on the next poll after expiry.
+    nasStatusCacheTTL: 60s
     # Verify the array certificate and hostname for both REST and bulk requests.
     tlsInsecureSkipVerify: false
     # Optional PEM CA bundle for an internal certificate authority.

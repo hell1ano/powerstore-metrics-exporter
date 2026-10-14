@@ -36,6 +36,8 @@ import (
 )
 
 type Client struct {
+	nasStatusTTL     time.Duration
+	nasStatus        responseCache
 	inventoryLoadMu  sync.Mutex
 	capacityInterval string
 	authMu           sync.RWMutex
@@ -77,6 +79,14 @@ func NewConfiguredClient(config utils.Storage, logger log.Logger) (*Client, erro
 	if interval != "Five_Mins" && interval != "One_Hour" && interval != "One_Day" {
 		return nil, fmt.Errorf("capacityInterval must be Five_Mins, One_Hour or One_Day")
 	}
+	nasTTL := time.Minute
+	if config.NASStatusCacheTTL != "" {
+		var err error
+		nasTTL, err = time.ParseDuration(config.NASStatusCacheTTL)
+		if err != nil || nasTTL < time.Second {
+			return nil, fmt.Errorf("nasStatusCacheTTL must be a duration of at least one second")
+		}
+	}
 	baseUrl := "https://" + config.Ip + "/api/rest/"
 	tlsConfig, err := utils.ArrayTLSConfig(config)
 	if err != nil {
@@ -99,6 +109,7 @@ func NewConfiguredClient(config utils.Storage, logger log.Logger) (*Client, erro
 	}
 	client := &Client{
 		IP:               config.Ip,
+		nasStatusTTL:     nasTTL,
 		capacityInterval: interval,
 		username:         config.User,
 		password:         config.Password,

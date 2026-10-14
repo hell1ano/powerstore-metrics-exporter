@@ -74,7 +74,9 @@ func (c *Client) GetAppliance() (string, error) {
 }
 
 func (c *Client) GetNas() (string, error) {
-	return c.getData("nas_server?select=*&limit="+strconv.Itoa(c.limit), "GET", "")
+	return c.cachedNASStatus(func() (string, error) {
+		return c.getData("nas_server?select=*&limit="+strconv.Itoa(c.limit), "GET", "")
+	})
 }
 
 func (c *Client) GetNasDetail() (string, error) {

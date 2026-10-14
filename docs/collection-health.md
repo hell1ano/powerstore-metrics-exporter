@@ -193,3 +193,23 @@ uses capped backoff; successful activation gets a one-minute warm-up before down
 
 Use `log.path: "-"` (or empty) for stdout-only logging. Invalid startup configuration
 and HTTP/TLS listener errors exit nonzero. Docker packaging is unchanged.
+
+## NAS status request caching
+
+Set `nasStatusCacheTTL: 60s` in each `storageList` entry. Omitted values default to
+60 seconds; valid durations must be at least one second. This caches the NAS REST
+status response per array and exporter process. Refresh is demand-driven: the
+first poll after expiry fetches a new response; idle exporters do not poll on a
+background timer. Concurrent polls share the refresh. Pagination/authentication
+may require several HTTP requests within one logical refresh.
+
+A failed refresh caches the error for the same interval, so repeated polls cannot
+cause a retry storm. Previous successful data is not returned after a failed
+refresh. Incomplete responses still fail collector validation. Cached successful
+status may be up to the configured interval old; collection last-success remains
+scrape success, not a new source acquisition timestamp. Inventory discovery and
+bulk performance downloads retain their separate schedules. Other REST status
+collectors are not cached by this NAS-specific setting.
+
+Info logs identify real NAS REST refreshes; cache hits and routine NAS collection
+starts are debug-level. Existing old configuration files receive the 60s default.

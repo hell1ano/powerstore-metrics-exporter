@@ -211,3 +211,11 @@ partial readiness, failure and recovery. Docker files remain unchanged.
 Validation: full local Go tests, vet and executable build passed. A synthetic
 unavailable-array process test served `/livez` (200) and `/readyz` (503) within
 five seconds; invalid bulkMaxAge exited with code 1. No live array was contacted.
+
+## NAS status caching
+
+Add per-array `nasStatusCacheTTL` (default 60s) with serialized, demand-driven
+refreshes. Cache failures without serving stale successful data, preserving failure
+health and bounding retries. Clarify NAS log sources and move routine starts to
+debug. Synthetic tests cover concurrent polls, expiry, failure reuse, recovery and
+configuration validation. No production logs or identifiers are committed.

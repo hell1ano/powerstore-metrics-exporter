@@ -50,7 +50,7 @@ func NewNasCollector(api *client.Client, logger log.Logger) *nasCollector {
 }
 
 func (c *nasCollector) Collect(ch chan<- prometheus.Metric) {
-	level.Info(c.logger).Log("msg", "Start collecting nas https data")
+	level.Debug(c.logger).Log("msg", "Collecting NAS status through REST cache", "ip", c.client.IP)
 	startTime := time.Now()
 	nasData, err := c.client.GetNas()
 	if err != nil {
@@ -72,7 +72,7 @@ func (c *nasCollector) Collect(ch chan<- prometheus.Metric) {
 			ch <- prometheus.MustNewConstMetric(metricDesc, prometheus.GaugeValue, value, name)
 		}
 	}
-	level.Info(c.logger).Log("msg", "Obtaining the nas https is successful", "time", time.Since(startTime))
+	level.Debug(c.logger).Log("msg", "NAS status collection finished", "time", time.Since(startTime))
 }
 
 func getNasFloatData(key string, value gjson.Result) float64 {

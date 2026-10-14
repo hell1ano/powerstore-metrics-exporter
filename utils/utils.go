@@ -44,6 +44,7 @@ func InitReqCounter(maxReq int) error {
 }
 
 type Storage struct {
+	NASStatusCacheTTL     string `yaml:"nasStatusCacheTTL"`
 	CapacityInterval      string `yaml:"capacityInterval"`
 	TLSCAFile             string `yaml:"tlsCAFile"`
 	TLSInsecureSkipVerify bool   `yaml:"tlsInsecureSkipVerify"`
