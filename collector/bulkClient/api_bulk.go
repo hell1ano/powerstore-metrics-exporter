@@ -91,6 +91,7 @@ func NewBulkClient(config utils.Storage, bulkDir string, logger log.Logger) (*Bu
 		},
 		Timeout: 60 * time.Second,
 	}
+	httpClient.Transport = utils.LogAPITransport(httpClient.Transport, logger, config.Ip, "bulk")
 	client := &BulkClient{
 		IsEnable:  config.Bulk,
 		IP:        config.Ip,

@@ -107,6 +107,7 @@ func NewConfiguredClient(config utils.Storage, logger log.Logger) (*Client, erro
 		},
 		Timeout: 60 * time.Second,
 	}
+	httpClient.Transport = utils.LogAPITransport(httpClient.Transport, logger, config.Ip, "rest")
 	client := &Client{
 		IP:               config.Ip,
 		nasStatusTTL:     nasTTL,
