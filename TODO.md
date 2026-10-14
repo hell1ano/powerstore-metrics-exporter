@@ -90,13 +90,8 @@ See [pilot observations](docs/pilot-checklist.md#first-live-results--2026-10-14)
 
 ## Requested deployment improvements
 
-- [ ] **Persist exporter log files on the host filesystem.** Document and validate
-  a Podman bind mount from a host log directory to the container log directory,
-  with `log.path` pointing inside that mount. Cover rootless/container-user write
-  permissions and SELinux labeling where applicable. Verify logs remain accessible
-  on the host and survive container recreation. Keep stdout logging available.
-  This is a requested deployment improvement; implementation and validation are
-  pending. Do not commit generated logs or production configuration.
+- [x] **Persist exporter log files on the host filesystem.** Handled by the
+  operator; no further host logging or rotation action is required.
 
 ## NAS polling and request visibility
 
@@ -145,5 +140,6 @@ workaround; that reported issue remains open. Production logs remain private.
 - [x] Separate incoming client requests from PowerStore/API and exporter activity.
 - [x] Add configurable size rotation, bounded backups, age cleanup and compression.
 - [x] Document host directory mounts and disabling duplicate stdout output.
-- [ ] Pilot host permissions, SELinux, persistence and rotation in Podman.
+- [x] Host logging and rotation handled by the operator; close the deployment
+  follow-up at their request.
 - [x] Metro policy confirmed: retain monitoring on both local Metro endpoints.
