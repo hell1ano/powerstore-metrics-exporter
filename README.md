@@ -165,15 +165,44 @@ that the array is currently reachable. `/performance` exposes exporter process m
 
 ## Monitoring setup
 
-For **Zabbix 7.0**, import
-[templates/zabbix/zbx_export_templates_7.0.yaml](templates/zabbix/zbx_export_templates_7.0.yaml)
-and follow the [setup and migration guide](templates/zabbix/README.md). Create one
-host per array and set its exporter URL and array-address macros. No Prometheus
-server or Zabbix agent is required.
+For **Zabbix 7.0 / 7.0.24**, use these complementary template files:
 
-The original Zabbix 6.0 template remains available. Do not link both templates to
-the same host: item keys overlap. Review filesystem name-to-ID migration and
-history retention before replacing templates.
+| File | Where to link it |
+| --- | --- |
+| [Array template](templates/zabbix/zbx_export_templates_7.0.yaml) | Link **Dell PowerStore by exporter HTTP** to one host per PowerStore array. Set `{$POWERSTORE.EXPORTER.URL}` and `{$PST_IP}`. |
+| [NAS host bundle](templates/zabbix/zbx_export_nas_hosts_7.0.yaml) | Link **Dell PowerStore NAS discovery by exporter HTTP** to **one discovery host per exporter**, covering all configured arrays. It creates source NAS hosts linked automatically to **Dell PowerStore NAS by exporter HTTP**. |
+
+For array monitoring plus separate source NAS hosts, import both files. Deploy
+latest main first: the NAS bundle needs `/discovery/nas` and `/nas-hosts/<key>/...`,
+which older exporters do not provide. No Prometheus server or Zabbix agent is needed.
+
+On the NAS discovery host, set `{$POWERSTORE.EXPORTER.URL}` to the exporter URL
+reachable from the Zabbix server/proxy (no trailing slash). Add or update this in
+the existing exporter configuration, then restart:
+
+```yaml
+exporter:
+  inventoryRefresh: 15m
+```
+
+This periodically refreshes ownership; the default is startup-only. Zabbix NAS
+host discovery also defaults to 15 minutes, controlled separately by
+`{$POWERSTORE.NAS.DISCOVERY.INTERVAL}`. Do not create a discovery parent per array.
+With unique, unchanged NAS names, the same discovered NAS host is retained when
+its source moves between configured PowerStores. Filesystem UUID changes can
+still create replacement filesystem items.
+
+The array template already contains NAS/filesystem monitoring. After validating
+the new child hosts, deliberately retire overlapping array-host discovery/items
+to avoid duplicate monitoring; preserve history during migration. Existing manual
+hosts are not automatically adopted by discovery.
+
+See the [array setup and migration guide](templates/zabbix/README.md) and
+[NAS host setup guide](templates/zabbix/NAS-hosts.md). Live import, alerts and
+failover acceptance in Zabbix 7.0.24 remain pilot checks.
+
+The original Zabbix 6.0 template remains available. Do not link it alongside the
+7.0 array template on the same host: item keys overlap.
 
 For **Prometheus**, adapt the scrape jobs from
 [templates/prometheus/prometheus.yml](templates/prometheus/prometheus.yml) to your
@@ -199,9 +228,12 @@ Volume Metro remains a separate feature: both volume sides stay monitored.
 Restart after upgrading to load the NAS policy field into startup inventory.
 Partial filesystem output and stable ID-based item keys remain unchanged.
 
-## Source NAS hosts in Zabbix 7
+## Volume performance in Zabbix
 
-For one host per source NAS, including movement between PowerStores, import
-`zbx_export_nas_hosts_7.0.yaml` and use one exporter-wide discovery host.
-See [setup and migration instructions](templates/zabbix/NAS-hosts.md).
-Periodic `exporter.inventoryRefresh` is required for automatic move detection.
+Valid samples remain visible when another volume has an object-level error.
+Selected volumes absent from a valid, fresh bulk performance module display zero
+without a manual unused-volume list, provided inventory supplies their name and
+appliance ID. Those values reflect the configured monitoring policy, not measured
+zeros: collection health remains failed and named warnings identify missing rows.
+Stale/invalid archives do not generate zeros. Keep collection-health alerts enabled
+alongside performance items; see [collection health](docs/collection-health.md).

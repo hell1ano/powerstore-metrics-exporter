@@ -4,13 +4,27 @@
 | --- | --- | --- |
 | `zbx_export_templates.yaml` | Template API Storage Device EMC PowerStore Exporter | Existing Zabbix 6.0 export, retained unchanged. |
 | `zbx_export_templates_7.0.yaml` | Dell PowerStore by exporter HTTP | New Zabbix 7.0 export with collection health, freshness, corrected file/NAS mappings and TLS configuration. |
+| `zbx_export_nas_hosts_7.0.yaml` | Dell PowerStore NAS discovery by exporter HTTP + Dell PowerStore NAS by exporter HTTP | One exporter-wide discovery parent creates a host per eligible source NAS, with NAS and filesystem items. |
 
-The new template targets Zabbix 7.0, including 7.0.24. Its YAML, references, UUIDs,
+The 7.0 templates target Zabbix 7.0, including 7.0.24. Their YAML, references, UUIDs,
 metric names and labels are tested in the repository. A live import and end-to-end
 PowerStoreOS 5.0.0.2 validation are still required; this is not a compatibility
 certification. No Prometheus server or Zabbix agent is required.
 
-## Setup
+## Choosing templates
+
+Import the array template for one host per PowerStore. Import the NAS host bundle
+as well when you want separate source NAS hosts. The bundle contains both the
+parent discovery and child monitoring templates; link only its parent manually,
+to one discovery host covering the exporter, not to every array host.
+
+Deploy the matching updated exporter first and set periodic
+`exporter.inventoryRefresh` (for example `15m`) for automatic source movement.
+Set `{$POWERSTORE.EXPORTER.URL}` on the discovery parent; children inherit it.
+See [NAS host setup, migration and failover checks](NAS-hosts.md). Plan retirement
+of overlapping array NAS/filesystem items after validating the child hosts.
+
+## Array template setup
 
 1. Build and deploy the updated exporter first. Pre-create its bulk cache directory.
    For PowerStoreOS 5.0.0.2, start from the project's documented newer-OS settings:
@@ -176,3 +190,13 @@ For one host per source NAS, including movement between PowerStores, import
 `zbx_export_nas_hosts_7.0.yaml` and use one exporter-wide discovery host.
 See [setup and migration instructions](NAS-hosts.md).
 Periodic `exporter.inventoryRefresh` is required for automatic move detection.
+
+## Missing volume performance rows
+
+The updated exporter displays zero for selected volumes missing from valid, fresh
+bulk performance data when inventory identity is available. Other valid volume
+samples are retained on per-object errors. No template preprocessing or manual
+unused-volume list is required. Collection-health items still report incomplete
+coverage and warnings name the affected volumes; do not disable those alerts
+merely because performance values now show zero. Stale or invalid archives never
+produce fallback zeros. See [collection health](../../docs/collection-health.md).
