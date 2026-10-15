@@ -170,12 +170,9 @@ Volume Metro remains a separate feature: both volume sides stay monitored.
 Restart after upgrading to load the NAS policy field into startup inventory.
 Partial filesystem output and stable ID-based item keys remain unchanged.
 
-### Deferred per-NAS hosts
+## Source NAS hosts in Zabbix 7
 
-The optional exporter-based NAS host discovery solution is saved on
-[`codex/nas-host-discovery`](https://github.com/hell1ano/powerstore-metrics-exporter/tree/codex/nas-host-discovery).
-It is deferred; main continues to use the existing array template and endpoints.
-No exporter redeployment or template import is needed for this deferral. The
-saved NAS host bundle requires its matching exporter and must not be imported
-against the currently deployed version. A Zabbix-only replacement is not yet
-implemented.
+For one host per source NAS, including movement between PowerStores, import
+`zbx_export_nas_hosts_7.0.yaml` and use one exporter-wide discovery host.
+See [setup and migration instructions](NAS-hosts.md).
+Periodic `exporter.inventoryRefresh` is required for automatic move detection.

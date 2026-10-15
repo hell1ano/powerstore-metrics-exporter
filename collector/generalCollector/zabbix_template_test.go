@@ -121,6 +121,14 @@ func TestZabbix7MetricContract(t *testing.T) {
 		}
 	}
 	check(document)
+	data, err = os.ReadFile("../../templates/zabbix/zbx_export_nas_hosts_7.0.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = yaml.Unmarshal(data, &document); err != nil {
+		t.Fatal(err)
+	}
+	check(document)
 }
 
 func TestZabbix7StructureAndTriggers(t *testing.T) {
@@ -297,5 +305,80 @@ func TestZabbixPortSpeedsAcceptFractionalGbps(t *testing.T) {
 	visit(document)
 	if count != 2 {
 		t.Fatalf("found %d speed prototypes", count)
+	}
+}
+
+func TestNASHostTemplateIdentityAndReferences(t *testing.T) {
+	data, err := os.ReadFile("../../templates/zabbix/zbx_export_nas_hosts_7.0.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc map[string]interface{}
+	if err = yaml.Unmarshal(data, &doc); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "{$PST_IP}") || strings.Contains(string(data), "/Dell PowerStore by exporter HTTP/") {
+		t.Fatal("array-specific reference in child bundle")
+	}
+	root := doc["zabbix_export"].(map[string]interface{})
+	templates := root["templates"].([]interface{})
+	if root["version"] != "7.0" || len(templates) != 2 {
+		t.Fatal("incorrect template bundle")
+	}
+	ids := map[string]bool{}
+	for _, entry := range templates {
+		template := entry.(map[string]interface{})
+		keys := map[string]bool{}
+		var masters []string
+		var walk func(interface{})
+		walk = func(value interface{}) {
+			switch v := value.(type) {
+			case map[string]interface{}:
+				if id, ok := v["uuid"].(string); ok {
+					if ids[id] {
+						t.Errorf("duplicate UUID %s", id)
+					}
+					ids[id] = true
+				}
+				if key, ok := v["key"].(string); ok && v["type"] != nil {
+					if keys[key] {
+						t.Errorf("duplicate key %s", key)
+					}
+					keys[key] = true
+				}
+				if m, ok := v["master_item"].(map[string]interface{}); ok {
+					masters = append(masters, m["key"].(string))
+				}
+				if v["type"] == "HTTP_AGENT" && (v["verify_peer"] != "YES" || v["verify_host"] != "YES") {
+					t.Error("TLS verification missing")
+				}
+				for _, x := range v {
+					walk(x)
+				}
+			case []interface{}:
+				for _, x := range v {
+					walk(x)
+				}
+			}
+		}
+		walk(template)
+		for _, key := range masters {
+			if !keys[key] {
+				t.Errorf("missing master %s", key)
+			}
+		}
+	}
+	parent := templates[1].(map[string]interface{})
+	rule := parent["discovery_rules"].([]interface{})[0].(map[string]interface{})
+	if rule["lifetime_type"] != "DELETE_NEVER" || rule["enabled_lifetime"] != "1h" {
+		t.Error("host history retention changed")
+	}
+	proto := rule["host_prototypes"].([]interface{})[0].(map[string]interface{})
+	if proto["host"] != "powerstore-nas-{#NASKEY}" || proto["name"] != "{#NASNAME}" || proto["custom_interfaces"] != "YES" {
+		t.Error("unstable host identity or interface dependency")
+	}
+	child := templates[0].(map[string]interface{})
+	if len(child["discovery_rules"].([]interface{})) != 4 {
+		t.Error("NAS/filesystem discovery coverage changed")
 	}
 }
