@@ -237,3 +237,13 @@ appliance ID. Those values reflect the configured monitoring policy, not measure
 zeros: collection health remains failed and named warnings identify missing rows.
 Stale/invalid archives do not generate zeros. Keep collection-health alerts enabled
 alongside performance items; see [collection health](docs/collection-health.md).
+
+### Idle-object detection
+
+The Zabbix 7 array and NAS templates identify volumes/filesystems with zero
+average total IOPS over 24 hours as Information-level problems (`activity: idle`).
+The window and minimum sample count are configurable through
+`{$POWERSTORE.IDLE.PERIOD}` and `{$POWERSTORE.IDLE.MIN.SAMPLES}` (defaults `24h`
+and `288` for five-minute polling). Import the updated templates; see
+[configuration and data-coverage limits](templates/zabbix/README.md#idle-volumes-and-filesystems).
+Missing filesystem samples do not count as zero; volume fallback zeros do.

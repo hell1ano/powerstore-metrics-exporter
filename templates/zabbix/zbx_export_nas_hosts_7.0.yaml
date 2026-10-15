@@ -260,6 +260,15 @@ zabbix_export:
                   value_type: FLOAT
                 - history: 7d
                   key: powerstore.performance.filesystem.avg_total_iops[{#FILEID}]
+                  trigger_prototypes:
+                    - uuid: "d6f4d3f3c5b35680a72fd18809356eaf"
+                      expression: "avg(/Dell PowerStore NAS by exporter HTTP/powerstore.performance.filesystem.avg_total_iops[{#FILEID}],{$POWERSTORE.IDLE.PERIOD})=0 and count(/Dell PowerStore NAS by exporter HTTP/powerstore.performance.filesystem.avg_total_iops[{#FILEID}],{$POWERSTORE.IDLE.PERIOD})>={$POWERSTORE.IDLE.MIN.SAMPLES} and nodata(/Dell PowerStore NAS by exporter HTTP/powerstore.performance.filesystem.avg_total_iops[{#FILEID}],15m)=0"
+                      name: "Filesystem [{#NASNAME} / {#FILENAME}]: Zero average IOPS over {$POWERSTORE.IDLE.PERIOD}"
+                      priority: "INFO"
+                      description: "Observed average total IOPS is zero over the configured window with sufficient recent samples. Missing data is not converted to zero by this template. Exporter-filled volume zeros count; check collection-health alerts before treating this as proof of inactivity."
+                      tags:
+                        - tag: activity
+                          value: idle
                   master_item:
                     key: powerstore.file
                   name: 'FILESYSTEM [{#NASNAME} / {#FILENAME}]: avg total iops'
@@ -919,6 +928,12 @@ zabbix_export:
               uuid: 12f69feb48d055af9f0e5d6800ac2016
               value_type: FLOAT
           macros:
+            - macro: "{$POWERSTORE.IDLE.PERIOD}"
+              value: "24h"
+              description: "Rolling zero-average IOPS window. Keep item history longer than this period; adjust minimum samples if changing the window."
+            - macro: "{$POWERSTORE.IDLE.MIN.SAMPLES}"
+              value: "288"
+              description: "Minimum samples in the inactivity window. Default 288 assumes 24 hours at five-minute polling; use 576 for 48h or 72 for 6h. Adjust if polling changes."
             - description: Stable identity populated by the host prototype.
               macro: '{$POWERSTORE.NAS.KEY}'
               value: DISCOVERED

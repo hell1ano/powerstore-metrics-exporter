@@ -382,3 +382,58 @@ func TestNASHostTemplateIdentityAndReferences(t *testing.T) {
 		t.Error("NAS/filesystem discovery coverage changed")
 	}
 }
+
+func TestIdleVolumeAndFilesystemTriggers(t *testing.T) {
+	for _, file := range []string{"zbx_export_templates_7.0.yaml", "zbx_export_nas_hosts_7.0.yaml"} {
+		b, err := os.ReadFile("../../templates/zabbix/" + file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var doc map[string]interface{}
+		if err = yaml.Unmarshal(b, &doc); err != nil {
+			t.Fatal(err)
+		}
+		templates := doc["zabbix_export"].(map[string]interface{})["templates"].([]interface{})
+		template := templates[0].(map[string]interface{})
+		macros := map[string]string{}
+		for _, entry := range template["macros"].([]interface{}) {
+			m := entry.(map[string]interface{})
+			macros[m["macro"].(string)] = m["value"].(string)
+		}
+		if macros["{$POWERSTORE.IDLE.PERIOD}"] != "24h" || macros["{$POWERSTORE.IDLE.MIN.SAMPLES}"] != "288" {
+			t.Fatal("incorrect inactivity defaults")
+		}
+		count := 0
+		for _, r := range template["discovery_rules"].([]interface{}) {
+			rule := r.(map[string]interface{})
+			items, _ := rule["item_prototypes"].([]interface{})
+			for _, it := range items {
+				item := it.(map[string]interface{})
+				triggers, _ := item["trigger_prototypes"].([]interface{})
+				for _, tr := range triggers {
+					trigger := tr.(map[string]interface{})
+					name := trigger["name"].(string)
+					if !strings.Contains(name, "Zero average IOPS") {
+						continue
+					}
+					count++
+					ref := "/" + template["template"].(string) + "/" + item["key"].(string)
+					want := "avg(" + ref + ",{$POWERSTORE.IDLE.PERIOD})=0 and count(" + ref + ",{$POWERSTORE.IDLE.PERIOD})>={$POWERSTORE.IDLE.MIN.SAMPLES} and nodata(" + ref + ",15m)=0"
+					if trigger["expression"] != want || trigger["priority"] != "INFO" {
+						t.Error("inactivity guards or reference incorrect")
+					}
+					if !strings.Contains(item["key"].(string), ".filesystem.avg_total_iops[") && !strings.Contains(item["key"].(string), ".volume.iops.total[") {
+						t.Error("inactivity targets wrong measurement")
+					}
+				}
+			}
+		}
+		want := 2
+		if strings.Contains(file, "nas_hosts") {
+			want = 1
+		}
+		if count != want {
+			t.Errorf("idle coverage: got %d want %d", count, want)
+		}
+	}
+}

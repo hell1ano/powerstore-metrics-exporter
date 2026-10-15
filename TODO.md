@@ -211,3 +211,13 @@ workaround; retain that suspicion only as a recurrence check. Production logs re
   inventory appliance identity. Source filtering remains unchanged.
 - [ ] Rebuild/restart and verify zero-valued idle volumes and active-volume values
   in Zabbix; confirm missing-row warnings and failed health remain visible.
+
+## Idle-object detection
+
+- [x] Add Information-level zero-average total IOPS triggers for volumes and
+  filesystems in Zabbix 7 array/NAS templates, default 24h with configurable
+  window/minimum sample count and a recent-data guard.
+- [ ] Reimport templates and verify idle/active/recovery behavior after enough
+  history; review Information-severity notification actions.
+- Missing filesystem samples do not qualify as zeros. Filesystem performance
+  zero filling has not been implemented; capacity must not be zero-filled.

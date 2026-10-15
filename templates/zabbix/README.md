@@ -200,3 +200,33 @@ unused-volume list is required. Collection-health items still report incomplete
 coverage and warnings name the affected volumes; do not disable those alerts
 merely because performance values now show zero. Stale or invalid archives never
 produce fallback zeros. See [collection health](../../docs/collection-health.md).
+
+## Idle volumes and filesystems
+
+The Zabbix 7 array template creates Information-level inactivity triggers for
+volume and filesystem total IOPS. The NAS child template includes the filesystem
+trigger too. Import the updated templates; no exporter rebuild is required for
+these trigger changes. Problems are tagged `activity: idle` for filtering.
+
+Override these macros on the array host or NAS discovery parent (inherited by
+NAS hosts):
+
+| Macro | Default | Meaning |
+| --- | --- | --- |
+| `{$POWERSTORE.IDLE.PERIOD}` | `24h` | Rolling window for average total IOPS. |
+| `{$POWERSTORE.IDLE.MIN.SAMPLES}` | `288` | Minimum samples required within that window; assumes five-minute polling. |
+
+For 48 hours use `48h` and `576`; for six hours use `6h` and `72`. Adjust the
+sample count if polling changes, and retain item history longer than the window.
+Detection requires average total IOPS equal to zero, enough samples and a sample
+within the last 15 minutes. It recovers when any condition no longer holds.
+The count is a coverage guard, not proof of uninterrupted sampling; polling faster
+without adjusting it can allow earlier detection. Notification delivery depends
+on your Zabbix actions, particularly whether they include Information severity.
+
+Exporter-filled volume zeros count towards the average. Keep collection-health
+alerts visible: an inactivity problem is not proof that an object can be deleted.
+Missing filesystem rows are not converted to zeros by this template, so filesystems
+without performance samples cannot qualify. The three accepted missing-data
+filesystems require actual zero samples or a separate exporter zero-fill change
+before this detector can identify them. Capacity data is unaffected.

@@ -1776,6 +1776,15 @@ zabbix_export:
               value_type: "FLOAT"
             - delay: "0"
               key: "powerstore.performance.volume.iops.total[{#APP_ID}_{#VOLUMENAME}]"
+              trigger_prototypes:
+                - uuid: "4ab1a4f97f3f5ed78287323909e2de38"
+                  expression: "avg(/Dell PowerStore by exporter HTTP/powerstore.performance.volume.iops.total[{#APP_ID}_{#VOLUMENAME}],{$POWERSTORE.IDLE.PERIOD})=0 and count(/Dell PowerStore by exporter HTTP/powerstore.performance.volume.iops.total[{#APP_ID}_{#VOLUMENAME}],{$POWERSTORE.IDLE.PERIOD})>={$POWERSTORE.IDLE.MIN.SAMPLES} and nodata(/Dell PowerStore by exporter HTTP/powerstore.performance.volume.iops.total[{#APP_ID}_{#VOLUMENAME}],15m)=0"
+                  name: "Volume [{#VOLUMENAME}]: Zero average IOPS over {$POWERSTORE.IDLE.PERIOD}"
+                  priority: "INFO"
+                  description: "Observed average total IOPS is zero over the configured window with sufficient recent samples. Missing data is not converted to zero by this template. Exporter-filled volume zeros count; check collection-health alerts before treating this as proof of inactivity."
+                  tags:
+                    - tag: activity
+                      value: idle
               master_item:
                 key: "powerstore.volume"
               name: "({#APP_ID}) Volume [{#VOLUMENAME}]: IOPS Total"
@@ -2352,6 +2361,15 @@ zabbix_export:
               name: "FILESYSTEM [{#NASNAME} / {#FILENAME}]: avg total iops"
               type: "DEPENDENT"
               key: "powerstore.performance.filesystem.avg_total_iops[{#FILEID}]"
+              trigger_prototypes:
+                - uuid: "f5ebdb6667a257cfb4bd76456090ab46"
+                  expression: "avg(/Dell PowerStore by exporter HTTP/powerstore.performance.filesystem.avg_total_iops[{#FILEID}],{$POWERSTORE.IDLE.PERIOD})=0 and count(/Dell PowerStore by exporter HTTP/powerstore.performance.filesystem.avg_total_iops[{#FILEID}],{$POWERSTORE.IDLE.PERIOD})>={$POWERSTORE.IDLE.MIN.SAMPLES} and nodata(/Dell PowerStore by exporter HTTP/powerstore.performance.filesystem.avg_total_iops[{#FILEID}],15m)=0"
+                  name: "Filesystem [{#NASNAME} / {#FILENAME}]: Zero average IOPS over {$POWERSTORE.IDLE.PERIOD}"
+                  priority: "INFO"
+                  description: "Observed average total IOPS is zero over the configured window with sufficient recent samples. Missing data is not converted to zero by this template. Exporter-filled volume zeros count; check collection-health alerts before treating this as proof of inactivity."
+                  tags:
+                    - tag: activity
+                      value: idle
               value_type: "FLOAT"
               history: "7d"
               trends: "365d"
@@ -3962,6 +3980,12 @@ zabbix_export:
               name: "PowerStore: No recent successful bulk download"
               priority: "AVERAGE"
       macros:
+        - macro: "{$POWERSTORE.IDLE.PERIOD}"
+          value: "24h"
+          description: "Rolling zero-average IOPS window. Keep item history longer than this period; adjust minimum samples if changing the window."
+        - macro: "{$POWERSTORE.IDLE.MIN.SAMPLES}"
+          value: "288"
+          description: "Minimum samples in the inactivity window. Default 288 assumes 24 hours at five-minute polling; use 576 for 48h or 72 for 6h. Adjust if polling changes."
         - macro: "{$POWERSTORE.EXPORTER.URL}"
           value: "http://127.0.0.1:9010"
           description: "Exporter base URL, without trailing slash. Use https:// and a certificate hostname when TLS is enabled."
