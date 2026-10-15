@@ -1,0 +1,999 @@
+zabbix_export:
+    host_groups:
+        - name: PowerStore NAS
+          uuid: 7cf05697989351d7bb3e9df822c4792b
+    template_groups:
+        - name: Templates
+          uuid: c5d10813129b44ec8ab3705e3c75d2dc
+    templates:
+        - description: Discovered source NAS host. Metrics route by stable NAS name identity across arrays. Collector health is conservative array-wide health. Import with the NAS discovery template; do not link manually to array hosts.
+          discovery_rules:
+            - delay: "0"
+              item_prototypes:
+                - delay: "0"
+                  key: file.size.total.[{#FILEID}]
+                  master_item:
+                    key: powerstore.file
+                  name: File [{#NASNAME} / {#FILENAME}]:Size Total
+                  preprocessing:
+                    - parameters:
+                        - powerstore_filesystem_logical_provisioned{file_system_id="{#FILEID}"}
+                        - value
+                        - ""
+                      type: PROMETHEUS_PATTERN
+                  tags:
+                    - tag: NAS
+                      value: '{#NASNAME}'
+                    - tag: NAS ID
+                      value: '{#NASID}'
+                    - tag: Filesystem ID
+                      value: '{#FILEID}'
+                    - tag: Application
+                      value: filesystem
+                  type: DEPENDENT
+                  units: B
+                  uuid: 228367381e925be291816f7ec28d6eb8
+                  value_type: FLOAT
+                - delay: "0"
+                  key: file.size.used.[{#FILEID}]
+                  master_item:
+                    key: powerstore.file
+                  name: File [{#NASNAME} / {#FILENAME}]:Size Used
+                  preprocessing:
+                    - parameters:
+                        - powerstore_filesystem_logical_used{file_system_id="{#FILEID}"}
+                        - value
+                        - ""
+                      type: PROMETHEUS_PATTERN
+                  tags:
+                    - tag: NAS
+                      value: '{#NASNAME}'
+                    - tag: NAS ID
+                      value: '{#NASID}'
+                    - tag: Filesystem ID
+                      value: '{#FILEID}'
+                    - tag: Application
+                      value: filesystem
+                  type: DEPENDENT
+                  units: B
+                  uuid: c45af5d0bba1504d8f7d900cca7b1dc8
+                  value_type: FLOAT
+              key: powerstore.filesystem.discovery
+              lld_macro_paths:
+                - lld_macro: '{#FILENAME}'
+                  path: $.labels["name"]
+                - lld_macro: '{#FILEID}'
+                  path: $.labels["file_system_id"]
+                - lld_macro: '{#NASID}'
+                  path: $.labels["nas_server_id"]
+                - lld_macro: '{#NASNAME}'
+                  path: $.labels["nas_server_name"]
+                - lld_macro: '{#HELP}'
+                  path: $["help"]
+                - lld_macro: '{#NAME}'
+                  path: $["name"]
+              master_item:
+                key: powerstore.file
+              name: FileSystem Discovery
+              preprocessing:
+                - parameters:
+                    - '{__name__=~"^powerstore_filesystem_logical_provisioned"}'
+                  type: PROMETHEUS_TO_JSON
+              type: DEPENDENT
+              uuid: 9029670012135122bf8ed4f71407d81d
+            - delay: "0"
+              item_prototypes:
+                - delay: "0"
+                  key: powerstore.nas.server.status.[{#NASNAME}]
+                  master_item:
+                    key: powerstore.nas
+                  name: Nas [{#NASNAME}]:Server Status
+                  preprocessing:
+                    - parameters:
+                        - powerstore_nas_server_operational_status{name="{#NASNAME}"}
+                        - value
+                        - ""
+                      type: PROMETHEUS_PATTERN
+                  tags:
+                    - tag: Application
+                      value: nas
+                  trigger_prototypes:
+                    - expression: last(/Dell PowerStore NAS by exporter HTTP/powerstore.nas.server.status.[{#NASNAME}])<>1
+                      name: 'PowerStore: NAS [{#NASNAME}] is not started'
+                      priority: AVERAGE
+                      uuid: e949257935235d888f493e01968ca428
+                  type: DEPENDENT
+                  uuid: 44ad0c0d7d615db8a9ea8f6ab7b720cb
+                  valuemap:
+                    name: Hardware Status Value Mapping
+              key: powerstore.nas.server.discovery
+              lld_macro_paths:
+                - lld_macro: '{#HELP}'
+                  path: $["help"]
+                - lld_macro: '{#NAME}'
+                  path: $["name"]
+                - lld_macro: '{#NASNAME}'
+                  path: $.labels["name"]
+              master_item:
+                key: powerstore.nas
+              name: Nas Server Discovery
+              preprocessing:
+                - parameters:
+                    - '{__name__=~"^powerstore_nas_server_operational_status"}'
+                  type: PROMETHEUS_TO_JSON
+              type: DEPENDENT
+              uuid: 896ea856ef815773bffac8bced01204c
+            - item_prototypes:
+                - history: 7d
+                  key: powerstore.performance.filesystem.avg_read_latency[{#FILEID}]
+                  master_item:
+                    key: powerstore.file
+                  name: 'FILESYSTEM [{#NASNAME} / {#FILENAME}]: avg read latency'
+                  preprocessing:
+                    - parameters:
+                        - powerstore_metricFilesystem_avg_read_latency{file_system_id="{#FILEID}"}
+                        - value
+                        - ""
+                      type: PROMETHEUS_PATTERN
+                    - parameters:
+                        - "0.001"
+                      type: MULTIPLIER
+                  tags:
+                    - tag: NAS
+                      value: '{#NASNAME}'
+                    - tag: NAS ID
+                      value: '{#NASID}'
+                    - tag: Filesystem ID
+                      value: '{#FILEID}'
+                    - tag: Application
+                      value: performance filesystem
+                  trends: 365d
+                  type: DEPENDENT
+                  units: ms
+                  uuid: 973c629600ed54abae218d6fe3321181
+                  value_type: FLOAT
+                - history: 7d
+                  key: powerstore.performance.filesystem.avg_latency[{#FILEID}]
+                  master_item:
+                    key: powerstore.file
+                  name: 'FILESYSTEM [{#NASNAME} / {#FILENAME}]: avg latency'
+                  preprocessing:
+                    - parameters:
+                        - powerstore_metricFilesystem_avg_latency{file_system_id="{#FILEID}"}
+                        - value
+                        - ""
+                      type: PROMETHEUS_PATTERN
+                    - parameters:
+                        - "0.001"
+                      type: MULTIPLIER
+                  tags:
+                    - tag: NAS
+                      value: '{#NASNAME}'
+                    - tag: NAS ID
+                      value: '{#NASID}'
+                    - tag: Filesystem ID
+                      value: '{#FILEID}'
+                    - tag: Application
+                      value: performance filesystem
+                  trends: 365d
+                  type: DEPENDENT
+                  units: ms
+                  uuid: f7c536a549d458bab0978c2b0ac27775
+                  value_type: FLOAT
+                - history: 7d
+                  key: powerstore.performance.filesystem.avg_write_latency[{#FILEID}]
+                  master_item:
+                    key: powerstore.file
+                  name: 'FILESYSTEM [{#NASNAME} / {#FILENAME}]: avg write latency'
+                  preprocessing:
+                    - parameters:
+                        - powerstore_metricFilesystem_avg_write_latency{file_system_id="{#FILEID}"}
+                        - value
+                        - ""
+                      type: PROMETHEUS_PATTERN
+                    - parameters:
+                        - "0.001"
+                      type: MULTIPLIER
+                  tags:
+                    - tag: NAS
+                      value: '{#NASNAME}'
+                    - tag: NAS ID
+                      value: '{#NASID}'
+                    - tag: Filesystem ID
+                      value: '{#FILEID}'
+                    - tag: Application
+                      value: performance filesystem
+                  trends: 365d
+                  type: DEPENDENT
+                  units: ms
+                  uuid: b6ff3587693a5b69a44367bdf53f3396
+                  value_type: FLOAT
+                - history: 7d
+                  key: powerstore.performance.filesystem.avg_read_iops[{#FILEID}]
+                  master_item:
+                    key: powerstore.file
+                  name: 'FILESYSTEM [{#NASNAME} / {#FILENAME}]: avg read iops'
+                  preprocessing:
+                    - parameters:
+                        - powerstore_metricFilesystem_avg_read_iops{file_system_id="{#FILEID}"}
+                        - value
+                        - ""
+                      type: PROMETHEUS_PATTERN
+                  tags:
+                    - tag: NAS
+                      value: '{#NASNAME}'
+                    - tag: NAS ID
+                      value: '{#NASID}'
+                    - tag: Filesystem ID
+                      value: '{#FILEID}'
+                    - tag: Application
+                      value: performance filesystem
+                  trends: 365d
+                  type: DEPENDENT
+                  units: '!iops'
+                  uuid: b8b681ad8d875bd1bafc0e22846643ad
+                  value_type: FLOAT
+                - history: 7d
+                  key: powerstore.performance.filesystem.avg_read_bandwidth[{#FILEID}]
+                  master_item:
+                    key: powerstore.file
+                  name: 'FILESYSTEM [{#NASNAME} / {#FILENAME}]: avg read bandwidth'
+                  preprocessing:
+                    - parameters:
+                        - powerstore_metricFilesystem_avg_read_bandwidth{file_system_id="{#FILEID}"}
+                        - value
+                        - ""
+                      type: PROMETHEUS_PATTERN
+                  tags:
+                    - tag: NAS
+                      value: '{#NASNAME}'
+                    - tag: NAS ID
+                      value: '{#NASID}'
+                    - tag: Filesystem ID
+                      value: '{#FILEID}'
+                    - tag: Application
+                      value: performance filesystem
+                  trends: 365d
+                  type: DEPENDENT
+                  units: Bps
+                  uuid: 8c72bd24ed7d5101a6104b1437b9fad9
+                  value_type: FLOAT
+                - history: 7d
+                  key: powerstore.performance.filesystem.avg_total_iops[{#FILEID}]
+                  master_item:
+                    key: powerstore.file
+                  name: 'FILESYSTEM [{#NASNAME} / {#FILENAME}]: avg total iops'
+                  preprocessing:
+                    - parameters:
+                        - powerstore_metricFilesystem_avg_total_iops{file_system_id="{#FILEID}"}
+                        - value
+                        - ""
+                      type: PROMETHEUS_PATTERN
+                  tags:
+                    - tag: NAS
+                      value: '{#NASNAME}'
+                    - tag: NAS ID
+                      value: '{#NASID}'
+                    - tag: Filesystem ID
+                      value: '{#FILEID}'
+                    - tag: Application
+                      value: performance filesystem
+                  trends: 365d
+                  type: DEPENDENT
+                  units: '!iops'
+                  uuid: 49f43c69d0725f9a9d15e5bf326ca248
+                  value_type: FLOAT
+                - history: 7d
+                  key: powerstore.performance.filesystem.avg_total_bandwidth[{#FILEID}]
+                  master_item:
+                    key: powerstore.file
+                  name: 'FILESYSTEM [{#NASNAME} / {#FILENAME}]: avg total bandwidth'
+                  preprocessing:
+                    - parameters:
+                        - powerstore_metricFilesystem_avg_total_bandwidth{file_system_id="{#FILEID}"}
+                        - value
+                        - ""
+                      type: PROMETHEUS_PATTERN
+                  tags:
+                    - tag: NAS
+                      value: '{#NASNAME}'
+                    - tag: NAS ID
+                      value: '{#NASID}'
+                    - tag: Filesystem ID
+                      value: '{#FILEID}'
+                    - tag: Application
+                      value: performance filesystem
+                  trends: 365d
+                  type: DEPENDENT
+                  units: Bps
+                  uuid: 7262517fea485bb2b1fd7f6819c732b6
+                  value_type: FLOAT
+                - history: 7d
+                  key: powerstore.performance.filesystem.avg_write_iops[{#FILEID}]
+                  master_item:
+                    key: powerstore.file
+                  name: 'FILESYSTEM [{#NASNAME} / {#FILENAME}]: avg write iops'
+                  preprocessing:
+                    - parameters:
+                        - powerstore_metricFilesystem_avg_write_iops{file_system_id="{#FILEID}"}
+                        - value
+                        - ""
+                      type: PROMETHEUS_PATTERN
+                  tags:
+                    - tag: NAS
+                      value: '{#NASNAME}'
+                    - tag: NAS ID
+                      value: '{#NASID}'
+                    - tag: Filesystem ID
+                      value: '{#FILEID}'
+                    - tag: Application
+                      value: performance filesystem
+                  trends: 365d
+                  type: DEPENDENT
+                  units: '!iops'
+                  uuid: afa88ebc73cd56bcbec592103fe05cd9
+                  value_type: FLOAT
+                - history: 7d
+                  key: powerstore.performance.filesystem.avg_write_bandwidth[{#FILEID}]
+                  master_item:
+                    key: powerstore.file
+                  name: 'FILESYSTEM [{#NASNAME} / {#FILENAME}]: avg write bandwidth'
+                  preprocessing:
+                    - parameters:
+                        - powerstore_metricFilesystem_avg_write_bandwidth{file_system_id="{#FILEID}"}
+                        - value
+                        - ""
+                      type: PROMETHEUS_PATTERN
+                  tags:
+                    - tag: NAS
+                      value: '{#NASNAME}'
+                    - tag: NAS ID
+                      value: '{#NASID}'
+                    - tag: Filesystem ID
+                      value: '{#FILEID}'
+                    - tag: Application
+                      value: performance filesystem
+                  trends: 365d
+                  type: DEPENDENT
+                  units: Bps
+                  uuid: f9cab55e9b9e564ea8e04ead26511da1
+                  value_type: FLOAT
+                - history: 7d
+                  key: powerstore.performance.filesystem.avg_size[{#FILEID}]
+                  master_item:
+                    key: powerstore.file
+                  name: 'FILESYSTEM [{#NASNAME} / {#FILENAME}]: avg size'
+                  preprocessing:
+                    - parameters:
+                        - powerstore_metricFilesystem_avg_size{file_system_id="{#FILEID}"}
+                        - value
+                        - ""
+                      type: PROMETHEUS_PATTERN
+                  tags:
+                    - tag: NAS
+                      value: '{#NASNAME}'
+                    - tag: NAS ID
+                      value: '{#NASID}'
+                    - tag: Filesystem ID
+                      value: '{#FILEID}'
+                    - tag: Application
+                      value: performance filesystem
+                  trends: 365d
+                  type: DEPENDENT
+                  units: B
+                  uuid: 61a68b6c772f5b93bd7158e4da66f47b
+                  value_type: FLOAT
+                - history: 7d
+                  key: powerstore.performance.filesystem.avg_read_size[{#FILEID}]
+                  master_item:
+                    key: powerstore.file
+                  name: 'FILESYSTEM [{#NASNAME} / {#FILENAME}]: avg read size'
+                  preprocessing:
+                    - parameters:
+                        - powerstore_metricFilesystem_avg_read_size{file_system_id="{#FILEID}"}
+                        - value
+                        - ""
+                      type: PROMETHEUS_PATTERN
+                  tags:
+                    - tag: NAS
+                      value: '{#NASNAME}'
+                    - tag: NAS ID
+                      value: '{#NASID}'
+                    - tag: Filesystem ID
+                      value: '{#FILEID}'
+                    - tag: Application
+                      value: performance filesystem
+                  trends: 365d
+                  type: DEPENDENT
+                  units: B
+                  uuid: 0fa518d2bdaf5162a021b2de75d2a7a1
+                  value_type: FLOAT
+                - history: 7d
+                  key: powerstore.performance.filesystem.avg_write_size[{#FILEID}]
+                  master_item:
+                    key: powerstore.file
+                  name: 'FILESYSTEM [{#NASNAME} / {#FILENAME}]: avg write size'
+                  preprocessing:
+                    - parameters:
+                        - powerstore_metricFilesystem_avg_write_size{file_system_id="{#FILEID}"}
+                        - value
+                        - ""
+                      type: PROMETHEUS_PATTERN
+                  tags:
+                    - tag: NAS
+                      value: '{#NASNAME}'
+                    - tag: NAS ID
+                      value: '{#NASID}'
+                    - tag: Filesystem ID
+                      value: '{#FILEID}'
+                    - tag: Application
+                      value: performance filesystem
+                  trends: 365d
+                  type: DEPENDENT
+                  units: B
+                  uuid: 9d631c6329285058a27f218db83ec007
+                  value_type: FLOAT
+              key: powerstore.performance.filesystem.discovery
+              lld_macro_paths:
+                - lld_macro: '{#FILENAME}'
+                  path: $.labels["name"]
+                - lld_macro: '{#FILEID}'
+                  path: $.labels["file_system_id"]
+                - lld_macro: '{#NASID}'
+                  path: $.labels["nas_server_id"]
+                - lld_macro: '{#NASNAME}'
+                  path: $.labels["nas_server_name"]
+              master_item:
+                key: powerstore.file
+              name: Performance FILESYSTEM discovery
+              preprocessing:
+                - parameters:
+                    - '{__name__="powerstore_metricFilesystem_avg_total_iops"}'
+                  type: PROMETHEUS_TO_JSON
+              type: DEPENDENT
+              uuid: 5b6ca142cd9d5185bdbf65408ef3fb4e
+            - item_prototypes:
+                - history: 7d
+                  key: powerstore.performance.nas.avg_read_latency[{#NASNAME}]
+                  master_item:
+                    key: powerstore.nas
+                  name: 'NAS [{#NASNAME}]: avg read latency'
+                  preprocessing:
+                    - parameters:
+                        - powerstore_metricNas_avg_read_latency{nas_id="{#NASNAME}"}
+                        - value
+                        - ""
+                      type: PROMETHEUS_PATTERN
+                    - parameters:
+                        - "0.001"
+                      type: MULTIPLIER
+                  tags:
+                    - tag: Application
+                      value: performance nas
+                  trends: 365d
+                  type: DEPENDENT
+                  units: ms
+                  uuid: aaab42c66ae15b2db624d2ec3495f183
+                  value_type: FLOAT
+                - history: 7d
+                  key: powerstore.performance.nas.avg_latency[{#NASNAME}]
+                  master_item:
+                    key: powerstore.nas
+                  name: 'NAS [{#NASNAME}]: avg latency'
+                  preprocessing:
+                    - parameters:
+                        - powerstore_metricNas_avg_latency{nas_id="{#NASNAME}"}
+                        - value
+                        - ""
+                      type: PROMETHEUS_PATTERN
+                    - parameters:
+                        - "0.001"
+                      type: MULTIPLIER
+                  tags:
+                    - tag: Application
+                      value: performance nas
+                  trends: 365d
+                  type: DEPENDENT
+                  units: ms
+                  uuid: 03aa906d520a5baea4594ebc4416675a
+                  value_type: FLOAT
+                - history: 7d
+                  key: powerstore.performance.nas.avg_write_latency[{#NASNAME}]
+                  master_item:
+                    key: powerstore.nas
+                  name: 'NAS [{#NASNAME}]: avg write latency'
+                  preprocessing:
+                    - parameters:
+                        - powerstore_metricNas_avg_write_latency{nas_id="{#NASNAME}"}
+                        - value
+                        - ""
+                      type: PROMETHEUS_PATTERN
+                    - parameters:
+                        - "0.001"
+                      type: MULTIPLIER
+                  tags:
+                    - tag: Application
+                      value: performance nas
+                  trends: 365d
+                  type: DEPENDENT
+                  units: ms
+                  uuid: 6cac8de4179f5930896ae937e68d1ca5
+                  value_type: FLOAT
+                - history: 7d
+                  key: powerstore.performance.nas.avg_read_iops[{#NASNAME}]
+                  master_item:
+                    key: powerstore.nas
+                  name: 'NAS [{#NASNAME}]: avg read iops'
+                  preprocessing:
+                    - parameters:
+                        - powerstore_metricNas_avg_read_iops{nas_id="{#NASNAME}"}
+                        - value
+                        - ""
+                      type: PROMETHEUS_PATTERN
+                  tags:
+                    - tag: Application
+                      value: performance nas
+                  trends: 365d
+                  type: DEPENDENT
+                  units: '!iops'
+                  uuid: b63ac30cd9415a38b85c1db14ad2450a
+                  value_type: FLOAT
+                - history: 7d
+                  key: powerstore.performance.nas.avg_read_bandwidth[{#NASNAME}]
+                  master_item:
+                    key: powerstore.nas
+                  name: 'NAS [{#NASNAME}]: avg read bandwidth'
+                  preprocessing:
+                    - parameters:
+                        - powerstore_metricNas_avg_read_bandwidth{nas_id="{#NASNAME}"}
+                        - value
+                        - ""
+                      type: PROMETHEUS_PATTERN
+                  tags:
+                    - tag: Application
+                      value: performance nas
+                  trends: 365d
+                  type: DEPENDENT
+                  units: Bps
+                  uuid: a944f63344515b9b9e8f4b437fec4b82
+                  value_type: FLOAT
+                - history: 7d
+                  key: powerstore.performance.nas.avg_total_iops[{#NASNAME}]
+                  master_item:
+                    key: powerstore.nas
+                  name: 'NAS [{#NASNAME}]: avg total iops'
+                  preprocessing:
+                    - parameters:
+                        - powerstore_metricNas_avg_total_iops{nas_id="{#NASNAME}"}
+                        - value
+                        - ""
+                      type: PROMETHEUS_PATTERN
+                  tags:
+                    - tag: Application
+                      value: performance nas
+                  trends: 365d
+                  type: DEPENDENT
+                  units: '!iops'
+                  uuid: 708960485ec25565919624500964f610
+                  value_type: FLOAT
+                - history: 7d
+                  key: powerstore.performance.nas.avg_total_bandwidth[{#NASNAME}]
+                  master_item:
+                    key: powerstore.nas
+                  name: 'NAS [{#NASNAME}]: avg total bandwidth'
+                  preprocessing:
+                    - parameters:
+                        - powerstore_metricNas_avg_total_bandwidth{nas_id="{#NASNAME}"}
+                        - value
+                        - ""
+                      type: PROMETHEUS_PATTERN
+                  tags:
+                    - tag: Application
+                      value: performance nas
+                  trends: 365d
+                  type: DEPENDENT
+                  units: Bps
+                  uuid: 6ab6ab8fa3d2594ba3e10e469d8de3c6
+                  value_type: FLOAT
+                - history: 7d
+                  key: powerstore.performance.nas.avg_write_iops[{#NASNAME}]
+                  master_item:
+                    key: powerstore.nas
+                  name: 'NAS [{#NASNAME}]: avg write iops'
+                  preprocessing:
+                    - parameters:
+                        - powerstore_metricNas_avg_write_iops{nas_id="{#NASNAME}"}
+                        - value
+                        - ""
+                      type: PROMETHEUS_PATTERN
+                  tags:
+                    - tag: Application
+                      value: performance nas
+                  trends: 365d
+                  type: DEPENDENT
+                  units: '!iops'
+                  uuid: 466eb2c547445f618673c1990e64f3ea
+                  value_type: FLOAT
+                - history: 7d
+                  key: powerstore.performance.nas.avg_write_bandwidth[{#NASNAME}]
+                  master_item:
+                    key: powerstore.nas
+                  name: 'NAS [{#NASNAME}]: avg write bandwidth'
+                  preprocessing:
+                    - parameters:
+                        - powerstore_metricNas_avg_write_bandwidth{nas_id="{#NASNAME}"}
+                        - value
+                        - ""
+                      type: PROMETHEUS_PATTERN
+                  tags:
+                    - tag: Application
+                      value: performance nas
+                  trends: 365d
+                  type: DEPENDENT
+                  units: Bps
+                  uuid: 25442a2bc2ba5d1d9db561a15b14f478
+                  value_type: FLOAT
+                - history: 7d
+                  key: powerstore.performance.nas.avg_size[{#NASNAME}]
+                  master_item:
+                    key: powerstore.nas
+                  name: 'NAS [{#NASNAME}]: avg size'
+                  preprocessing:
+                    - parameters:
+                        - powerstore_metricNas_avg_size{nas_id="{#NASNAME}"}
+                        - value
+                        - ""
+                      type: PROMETHEUS_PATTERN
+                  tags:
+                    - tag: Application
+                      value: performance nas
+                  trends: 365d
+                  type: DEPENDENT
+                  units: B
+                  uuid: dbdcf8075bd5585783535333dd394f80
+                  value_type: FLOAT
+                - history: 7d
+                  key: powerstore.performance.nas.avg_write_size[{#NASNAME}]
+                  master_item:
+                    key: powerstore.nas
+                  name: 'NAS [{#NASNAME}]: avg write size'
+                  preprocessing:
+                    - parameters:
+                        - powerstore_metricNas_avg_write_size{nas_id="{#NASNAME}"}
+                        - value
+                        - ""
+                      type: PROMETHEUS_PATTERN
+                  tags:
+                    - tag: Application
+                      value: performance nas
+                  trends: 365d
+                  type: DEPENDENT
+                  units: B
+                  uuid: d2c70a5ece215746b56dbf8cbacc804f
+                  value_type: FLOAT
+                - history: 7d
+                  key: powerstore.performance.nas.avg_read_size[{#NASNAME}]
+                  master_item:
+                    key: powerstore.nas
+                  name: 'NAS [{#NASNAME}]: avg read size'
+                  preprocessing:
+                    - parameters:
+                        - powerstore_metricNas_avg_read_size{nas_id="{#NASNAME}"}
+                        - value
+                        - ""
+                      type: PROMETHEUS_PATTERN
+                  tags:
+                    - tag: Application
+                      value: performance nas
+                  trends: 365d
+                  type: DEPENDENT
+                  units: B
+                  uuid: 1b80e275c0115b92b8a22404d0b7983a
+                  value_type: FLOAT
+              key: powerstore.performance.nas.discovery
+              lld_macro_paths:
+                - lld_macro: '{#NASNAME}'
+                  path: $.labels["nas_id"]
+              master_item:
+                key: powerstore.nas
+              name: Performance NAS discovery
+              preprocessing:
+                - parameters:
+                    - '{__name__="powerstore_metricNas_avg_total_iops"}'
+                  type: PROMETHEUS_TO_JSON
+              type: DEPENDENT
+              uuid: 722551b7211857c6a22159ddf68ee59e
+          groups:
+            - name: Templates
+          items:
+            - delay: 5m
+              history: "0"
+              key: powerstore.file
+              name: Powerstore File
+              status_codes: "200"
+              timeout: 60s
+              trends: "0"
+              triggers:
+                - expression: nodata(/Dell PowerStore NAS by exporter HTTP/powerstore.file,{$POWERSTORE.NODATA})=1
+                  name: 'PowerStore: No file response'
+                  priority: AVERAGE
+                  uuid: f65ceb7cf6165b3b8e16533fa0870eb1
+              type: HTTP_AGENT
+              url: '{$POWERSTORE.EXPORTER.URL}/nas-hosts/{$POWERSTORE.NAS.KEY}/file'
+              uuid: 8ba941e616e453bdba6003d22ecd1843
+              value_type: TEXT
+              verify_host: "YES"
+              verify_peer: "YES"
+            - delay: 5m
+              history: "0"
+              key: powerstore.nas
+              name: Powerstore Nas
+              status_codes: "200"
+              timeout: 60s
+              trends: "0"
+              triggers:
+                - expression: nodata(/Dell PowerStore NAS by exporter HTTP/powerstore.nas,{$POWERSTORE.NODATA})=1
+                  name: 'PowerStore: No nas response'
+                  priority: AVERAGE
+                  uuid: 4118372603c951bf8d2166a4d6f747ac
+              type: HTTP_AGENT
+              url: '{$POWERSTORE.EXPORTER.URL}/nas-hosts/{$POWERSTORE.NAS.KEY}/nas'
+              uuid: a212101460245561abc150023e95f5df
+              value_type: TEXT
+              verify_host: "YES"
+              verify_peer: "YES"
+            - description: Health of the current owning array collector, including other NAS/filesystems; intentionally conservative.
+              history: 7d
+              key: powerstore.collector.success[filesystem_capacity]
+              master_item:
+                key: powerstore.file
+              name: 'Array Collector filesystem_capacity: Success'
+              preprocessing:
+                - parameters:
+                    - powerstore_collector_success{collector="filesystem_capacity"}
+                    - value
+                    - ""
+                  type: PROMETHEUS_PATTERN
+              tags:
+                - tag: component
+                  value: monitoring
+              trends: 365d
+              triggers:
+                - expression: last(/Dell PowerStore NAS by exporter HTTP/powerstore.collector.success[filesystem_capacity])=0 or nodata(/Dell PowerStore NAS by exporter HTTP/powerstore.collector.success[filesystem_capacity],{$POWERSTORE.NODATA})=1
+                  name: 'Array PowerStore: filesystem_capacity collection failed or health is missing'
+                  priority: AVERAGE
+                  uuid: 1e60c45384b25987904cef6d78f9189a
+              type: DEPENDENT
+              uuid: ed0f658115655bad9a25721a189351b4
+              value_type: UNSIGNED
+            - description: Health of the current owning array collector, including other NAS/filesystems; intentionally conservative.
+              history: 7d
+              key: powerstore.collector.last.success[filesystem_capacity]
+              master_item:
+                key: powerstore.file
+              name: 'Array Collector filesystem_capacity: Last success'
+              preprocessing:
+                - parameters:
+                    - powerstore_collector_last_success_timestamp_seconds{collector="filesystem_capacity"}
+                    - value
+                    - ""
+                  type: PROMETHEUS_PATTERN
+              tags:
+                - tag: component
+                  value: monitoring
+              trends: 365d
+              type: DEPENDENT
+              units: unixtime
+              uuid: af93f630b2bf5c738dc82151b92ba946
+              value_type: FLOAT
+            - description: Health of the current owning array collector, including other NAS/filesystems; intentionally conservative.
+              history: 7d
+              key: powerstore.collector.success[filesystem_performance]
+              master_item:
+                key: powerstore.file
+              name: 'Array Collector filesystem_performance: Success'
+              preprocessing:
+                - parameters:
+                    - powerstore_collector_success{collector="filesystem_performance"}
+                    - value
+                    - ""
+                  type: PROMETHEUS_PATTERN
+              tags:
+                - tag: component
+                  value: monitoring
+              trends: 365d
+              triggers:
+                - expression: last(/Dell PowerStore NAS by exporter HTTP/powerstore.collector.success[filesystem_performance])=0 or nodata(/Dell PowerStore NAS by exporter HTTP/powerstore.collector.success[filesystem_performance],{$POWERSTORE.NODATA})=1
+                  name: 'Array PowerStore: filesystem_performance collection failed or health is missing'
+                  priority: AVERAGE
+                  uuid: 25b0eb722348521b98e8a10bcaef1cfe
+              type: DEPENDENT
+              uuid: 4eb17ac887055f8598b16a8acaae9e27
+              value_type: UNSIGNED
+            - description: Health of the current owning array collector, including other NAS/filesystems; intentionally conservative.
+              history: 7d
+              key: powerstore.collector.last.success[filesystem_performance]
+              master_item:
+                key: powerstore.file
+              name: 'Array Collector filesystem_performance: Last success'
+              preprocessing:
+                - parameters:
+                    - powerstore_collector_last_success_timestamp_seconds{collector="filesystem_performance"}
+                    - value
+                    - ""
+                  type: PROMETHEUS_PATTERN
+              tags:
+                - tag: component
+                  value: monitoring
+              trends: 365d
+              type: DEPENDENT
+              units: unixtime
+              uuid: 3f4b159d24895bbabdc2fc0dd0fb88ea
+              value_type: FLOAT
+            - description: Health of the current owning array collector, including other NAS/filesystems; intentionally conservative.
+              history: 7d
+              key: powerstore.collector.success[nas]
+              master_item:
+                key: powerstore.nas
+              name: 'Array Collector nas: Success'
+              preprocessing:
+                - parameters:
+                    - powerstore_collector_success{collector="nas"}
+                    - value
+                    - ""
+                  type: PROMETHEUS_PATTERN
+              tags:
+                - tag: component
+                  value: monitoring
+              trends: 365d
+              triggers:
+                - expression: last(/Dell PowerStore NAS by exporter HTTP/powerstore.collector.success[nas])=0 or nodata(/Dell PowerStore NAS by exporter HTTP/powerstore.collector.success[nas],{$POWERSTORE.NODATA})=1
+                  name: 'Array PowerStore: nas collection failed or health is missing'
+                  priority: AVERAGE
+                  uuid: 83beb3c1468e55f19b7da1b024480efb
+              type: DEPENDENT
+              uuid: b2c23e1e1cf95c46a2adaf953e4cbb7d
+              value_type: UNSIGNED
+            - description: Health of the current owning array collector, including other NAS/filesystems; intentionally conservative.
+              history: 7d
+              key: powerstore.collector.last.success[nas]
+              master_item:
+                key: powerstore.nas
+              name: 'Array Collector nas: Last success'
+              preprocessing:
+                - parameters:
+                    - powerstore_collector_last_success_timestamp_seconds{collector="nas"}
+                    - value
+                    - ""
+                  type: PROMETHEUS_PATTERN
+              tags:
+                - tag: component
+                  value: monitoring
+              trends: 365d
+              type: DEPENDENT
+              units: unixtime
+              uuid: 39e7f52f60bb5aad913af7d2939c7818
+              value_type: FLOAT
+            - description: Health of the current owning array collector, including other NAS/filesystems; intentionally conservative.
+              history: 7d
+              key: powerstore.collector.success[nas_performance]
+              master_item:
+                key: powerstore.nas
+              name: 'Array Collector nas_performance: Success'
+              preprocessing:
+                - parameters:
+                    - powerstore_collector_success{collector="nas_performance"}
+                    - value
+                    - ""
+                  type: PROMETHEUS_PATTERN
+              tags:
+                - tag: component
+                  value: monitoring
+              trends: 365d
+              triggers:
+                - expression: last(/Dell PowerStore NAS by exporter HTTP/powerstore.collector.success[nas_performance])=0 or nodata(/Dell PowerStore NAS by exporter HTTP/powerstore.collector.success[nas_performance],{$POWERSTORE.NODATA})=1
+                  name: 'Array PowerStore: nas_performance collection failed or health is missing'
+                  priority: AVERAGE
+                  uuid: f3dd293fb25c5ccb8be150d4b92a6460
+              type: DEPENDENT
+              uuid: 54dd805edf2e5641a1d742b3954fbb5a
+              value_type: UNSIGNED
+            - description: Health of the current owning array collector, including other NAS/filesystems; intentionally conservative.
+              history: 7d
+              key: powerstore.collector.last.success[nas_performance]
+              master_item:
+                key: powerstore.nas
+              name: 'Array Collector nas_performance: Last success'
+              preprocessing:
+                - parameters:
+                    - powerstore_collector_last_success_timestamp_seconds{collector="nas_performance"}
+                    - value
+                    - ""
+                  type: PROMETHEUS_PATTERN
+              tags:
+                - tag: component
+                  value: monitoring
+              trends: 365d
+              type: DEPENDENT
+              units: unixtime
+              uuid: 12f69feb48d055af9f0e5d6800ac2016
+              value_type: FLOAT
+          macros:
+            - description: Stable identity populated by the host prototype.
+              macro: '{$POWERSTORE.NAS.KEY}'
+              value: DISCOVERED
+            - macro: '{$POWERSTORE.NODATA}'
+              value: 30m
+          name: Dell PowerStore NAS by exporter HTTP
+          template: Dell PowerStore NAS by exporter HTTP
+          uuid: ab3853e59cf55964a89249bd8716b8f1
+          valuemaps:
+            - mappings:
+                - newvalue: normal
+                  value: "1"
+                - newvalue: abnormal
+                  value: "0"
+              name: Hardware Status Value Mapping
+              uuid: 07e78c6fd3385f9988221a3e8c47fb66
+        - description: Link exactly once per exporter covering all candidate PowerStores. Requires unique stable NAS names and periodic exporter inventoryRefresh for automatic movement. Never link this template separately to each array.
+          discovery_rules:
+            - delay: "0"
+              enabled_lifetime: 1h
+              enabled_lifetime_type: DISABLE_AFTER
+              host_prototypes:
+                - custom_interfaces: "YES"
+                  group_links:
+                    - group:
+                        name: PowerStore NAS
+                  host: powerstore-nas-{#NASKEY}
+                  macros:
+                    - macro: '{$POWERSTORE.NAS.KEY}'
+                      value: '{#NASKEY}'
+                  name: '{#NASNAME}'
+                  tags:
+                    - tag: PowerStore
+                      value: '{#ARRAYIP}'
+                    - tag: NAS ID
+                      value: '{#NASID}'
+                    - tag: NAS
+                      value: '{#NASNAME}'
+                  templates:
+                    - name: Dell PowerStore NAS by exporter HTTP
+                  uuid: 4d689a81594a5f7883e970b094b7e382
+              key: powerstore.nas.host.discovery
+              lifetime_type: DELETE_NEVER
+              master_item:
+                key: powerstore.nas.host.inventory
+              name: Source NAS host discovery
+              type: DEPENDENT
+              uuid: ae72b535a0a95ac593c3a7187f5a94ad
+          groups:
+            - name: Templates
+          items:
+            - delay: '{$POWERSTORE.NAS.DISCOVERY.INTERVAL}'
+              history: "0"
+              key: powerstore.nas.host.inventory
+              name: Source NAS inventory
+              status_codes: "200"
+              timeout: 30s
+              trends: "0"
+              triggers:
+                - expression: nodata(/Dell PowerStore NAS discovery by exporter HTTP/powerstore.nas.host.inventory,1h)=1
+                  name: PowerStore NAS discovery unavailable
+                  priority: WARNING
+                  uuid: 79af9ba527a45ee6a0298bb5a29fa25f
+              type: HTTP_AGENT
+              url: '{$POWERSTORE.EXPORTER.URL}/discovery/nas'
+              uuid: 6a5d29e3bc345186b0ec564d3f947aa4
+              value_type: TEXT
+              verify_host: "YES"
+              verify_peer: "YES"
+          macros:
+            - macro: '{$POWERSTORE.EXPORTER.URL}'
+              value: http://127.0.0.1:9010
+            - macro: '{$POWERSTORE.NAS.DISCOVERY.INTERVAL}'
+              value: 15m
+          name: Dell PowerStore NAS discovery by exporter HTTP
+          template: Dell PowerStore NAS discovery by exporter HTTP
+          uuid: 0a7b0823db6b58ea92891e08b69552e8
+    version: "7.0"

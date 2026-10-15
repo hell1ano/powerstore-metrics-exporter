@@ -160,3 +160,9 @@ workaround; that reported issue remains open. Production logs remain private.
   protection policy, for async and synchronous NAS replication. Null policy
   remains eligible; volume Metro retains both sides.
 - [ ] Pilot the refined rule after restart and inspect remaining missing data.
+
+## Source NAS host discovery
+
+- [x] Add exporter-wide discovery, stable NAS-name identities and scoped child metrics.
+- [x] Add Zabbix 7 NAS host bundle, movement/conflict/cache tests and migration instructions.
+- [ ] Live pilot: import bundle, verify inherited URL and same host ID after source movement.
