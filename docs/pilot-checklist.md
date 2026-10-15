@@ -4,8 +4,8 @@ Local synthetic tests and private CSV replay are complete. The operator performs
 these live checks before production rollout. Keep real configurations, archives
 and result logs outside this public repository.
 
-1. Build the fork's `main` and configure a read-only monitoring account, bulk
-   collection, a writable private bulk directory and the correct array address.
+1. Build the fork's `main` and configure a monitoring account with the required bulk permissions
+   (the project documents Storage Operator), bulk collection, a writable private bulk directory and the correct array address.
    Configure `tlsCAFile` for the array CA and use a certificate-matching hostname
    or IP. Keep `tlsInsecureSkipVerify: false`.
 2. Start the exporter and allow the initial bulk collection to become available.
@@ -83,3 +83,24 @@ The log also shows volume performance inventory mismatches and missing volume-gr
 measurements on repeated checks. Earlier data-returned results for `/volume` and
 `/volumeGroup` apply to endpoint availability only, not performance completeness.
 These remain open pilot issues. No raw logs or object identifiers are included here.
+
+## Current rollout - 2026-10-15
+
+Build main at ffa2f27 or later to include both the partial volume-performance fix
+and restored source NAS host discovery. Follow
+[the NAS host setup guide](../templates/zabbix/NAS-hosts.md): import the additional
+bundle, create one exporter-wide discovery parent, set its exporter URL and set
+periodic inventoryRefresh (for example 15m). Verify stable host identity after
+source movement and avoid duplicate NAS/filesystem monitoring on old array hosts.
+
+The latest private log shows successful REST/bulk HTTP requests, regular bulk
+refreshes, working NAS status caching and 23 successful volume-group performance
+collections. Startup cache warnings stop after the first download. The operator
+accepts three test-filesystem warnings; missing measurements still fail health.
+
+Volume performance failed all 23 attempts in that pre-fix run. The supplied bulk
+archive confirms missing performance rows for the ten logged IDs even though
+capacity rows exist. The new fix preserves available volume samples; verify this
+after deployment. The reason PowerStore omits those rows remains unresolved.
+Historical findings above describe earlier runs, not the current implementation.
+No live template import/failover acceptance has yet been recorded.

@@ -1,5 +1,29 @@
 # Monitoring reliability follow-up
 
+## Current rollout status - 2026-10-15
+
+All currently requested implementation work is included in main through ffa2f27,
+including partial volume performance (d9d1cc2) and restored NAS host discovery.
+Earlier sections retain the investigation history; current remaining activities are:
+
+- [ ] Build/deploy latest main and verify partial volume performance in production.
+- [ ] Import/test both Zabbix 7 template options, item values, units and health alerts.
+- [ ] Configure one NAS discovery parent and periodic inventoryRefresh; verify one
+  host per eligible source and the same host ID after NAS source movement.
+- [ ] Investigate PowerStore's missing volume performance rows using direct API
+  comparison. Partial output is fixed; absent measurements are not recovered.
+- [ ] Complete live outage/recovery, stale-data, TLS, readiness, pagination,
+  inventory-change and volume Metro role-change checks from the pilot checklist.
+- [ ] Confirm live capacity interval semantics, especially if direct mode is used.
+- [ ] Inspect client access logs for duplicate monitoring callers; NAS REST cache
+  timing itself is verified in the latest run.
+
+The operator accepts warnings for three test filesystems; no suppression was
+requested or implemented. Their incomplete data can still fail filesystem health.
+Host log persistence and rotation are handled. Docker packaging changes remain
+explicitly deferred. The old-archive recovery suspicion is unconfirmed and did
+not recur after startup in the latest log; investigate only if it recurs.
+
 ## Before production monitoring
 
 - [x] **P1: Accept the PowerStore bulk timestamp format.** In addition to RFC3339,
@@ -80,13 +104,11 @@ Docker packaging findings are intentionally deferred at the operator's request.
   assumption. If repeated after startup, capture activation/download/validation/
   replacement errors and bulk last-success time before changing files. Do not
   prescribe deletion based on this message alone; NAS causality is unconfirmed.
-- [ ] **P1: Filesystem endpoint returns no data in the live pilot.** Other listed
-  endpoints return data, but `/metrics/<array>/file` reports last success as zero.
-  Obtain filesystem capacity/performance failure logs, raw collector health and
-  filesystem module freshness. Check REST inventory/NAS ownership and both bulk
-  filesystem modules. Root cause is not established; do not assume it is the same
-  as the old-file issue. Keep this open until filesystem values and recovery are
-  verified in the live pilot.
+- [x] **Earlier all-or-nothing filesystem failure addressed.** Partial output and
+  NAS policy filtering are implemented. The operator reports the latest run looks
+  good and accepts the three remaining test-filesystem warnings. Validate values
+  and expected failed health in the template; do not equate completion logs with
+  complete filesystem coverage.
 
 See [pilot observations](docs/pilot-checklist.md#first-live-results--2026-10-14).
 
@@ -101,8 +123,8 @@ See [pilot observations](docs/pilot-checklist.md#first-live-results--2026-10-14)
   share refreshes and preserve failure health while limiting retries.
 - [x] Log incoming exporter callers and distinguish NAS REST refreshes from cache
   reads; move routine NAS collection-start messages to debug.
-- [ ] Pilot: confirm repeated NAS polls generate one logical status refresh per
-  configured interval and inspect caller logs for duplicate monitoring clients.
+- [x] Latest pilot log confirms NAS REST requests are at least 60 seconds apart
+  after startup. Caller-log review for duplicate monitoring clients remains open.
 
 ## Full-log review and filesystem fix
 
@@ -116,13 +138,13 @@ See [pilot observations](docs/pilot-checklist.md#first-live-results--2026-10-14)
   metric IDs absent from inventory and known inventory objects missing measurements
   on repeated checks. Inspect the volume inventory endpoint and object eligibility;
   status data availability does not establish performance-collector success.
-- [ ] **P1: Volume-group performance coverage.** Repeated pilot checks show four
-  known groups missing measurements. Verify group eligibility and metric source
-  before changing coverage rules. Keep this separate from the filesystem fix.
+- [x] **Volume-group performance recovered in the latest run.** All 23 logged
+  attempts reported success. Earlier missing-group findings are closed for that
+  observed run; template values and broader role-change checks remain pending.
 
 NAS performance recovered after startup in the full log. No download or file
 replacement errors in that capture establish the cause of the earlier stale-file
-workaround; that reported issue remains open. Production logs remain private.
+workaround; retain that suspicion only as a recurrence check. Production logs remain private.
 
 
 ## Source-only monitoring policy
