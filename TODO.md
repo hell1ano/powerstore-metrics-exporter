@@ -192,10 +192,22 @@ workaround; retain that suspicion only as a recurrence check. Production logs re
 ## Partial volume performance
 
 - [x] Retain available bulk volume performance when selected volumes are missing;
-  report failed health and named per-volume warnings without fabricating zeros.
+  report failed health and named per-volume warnings. Later policy below adds
+  automatic zeros for absent rows in valid, fresh bulk data.
 - [x] Test 40 missing objects, real zero values, source filtering, warning
   suppression and recovery; privately replay the supplied CSV with synthetic
   inventory and normalized timestamps. No production data committed.
 - [ ] Rebuild/redeploy and confirm valid volume performance in the live pilot.
 - [ ] Investigate why PowerStore omits selected volume performance rows; compare
   the direct metrics API with the bulk archive. This fix does not recover absent data.
+
+## Automatic missing-volume zeros
+
+- [x] Display zero performance for selected volumes absent from a valid, fresh
+  bulk module, using inventory name/appliance identity and no manual idle list.
+- [x] Keep genuine measurements and other volumes visible on object-level errors;
+  log missing/invalid objects and preserve failed health for inferred zeros.
+- [x] Test zero labels/values, per-object isolation, stale-cache rejection and
+  inventory appliance identity. Source filtering remains unchanged.
+- [ ] Rebuild/restart and verify zero-valued idle volumes and active-volume values
+  in Zabbix; confirm missing-row warnings and failed health remain visible.

@@ -99,10 +99,77 @@ func TestVolumePartialResultsAndRecovery(t *testing.T) {
 
 func TestVolumePartialInventoryRequirements(t *testing.T) {
 	report := func(string, error) { t.Fatal("unexpected object error") }
-	if _, err := readVolumePerformanceBulk(nil, nil, report); err == nil {
+	if _, err := readVolumePerformanceBulk(nil, nil, nil, report); err == nil {
 		t.Fatal("missing inventory accepted")
 	}
-	if data, err := readVolumePerformanceBulk(nil, map[string]gjson.Result{}, report); err != nil || data != "[]" {
+	if data, err := readVolumePerformanceBulk(nil, map[string]gjson.Result{}, nil, report); err != nil || data != "[]" {
 		t.Fatal("empty selected inventory failed")
+	}
+}
+
+func TestVolumeAutomaticZerosAndObjectIsolation(t *testing.T) {
+	csv := "volume_id,appliance_id,timestamp,avg_read_iops\n"
+	for _, id := range []string{"good", "bad-name", "excluded"} {
+		csv += id + ",a1," + time.Now().UTC().Format(time.RFC3339) + ",7\n"
+	}
+	bc := syntheticBulk(t, "performance_metrics_by_volume.csv", csv)
+	api := &client.Client{IP: bc.IP}
+	expected := map[string]gjson.Result{"good": gjson.Parse(`"good"`), "bad-name": gjson.Parse(`""`), "absent": gjson.Parse(`"unused"`)}
+	client.PowerstoreModuleID[api.IP] = map[string]map[string]gjson.Result{"volume": expected, "volume_appliance": {"absent": gjson.Parse(`"a1"`)}}
+	defer delete(client.PowerstoreModuleID, api.IP)
+	var logs bytes.Buffer
+	reg := prometheus.NewPedanticRegistry()
+	reg.MustRegister(Monitored(api.IP, "volume_performance", true, NewMetricVolumeCollector(api, bc, log.NewLogfmtLogger(&logs))))
+	fs, err := reg.Gather()
+	if err != nil {
+		t.Fatal(err)
+	}
+	zeros, good := 0, 0
+	for _, f := range fs {
+		if f.GetName() == "powerstore_collector_success" && f.Metric[0].Gauge.GetValue() != 0 {
+			t.Fatal("missing-row assumption hidden")
+		}
+		if !strings.HasPrefix(f.GetName(), "powerstore_metricVolume_") {
+			continue
+		}
+		for _, m := range f.Metric {
+			labels := map[string]string{}
+			for _, l := range m.Label {
+				labels[l.GetName()] = l.GetValue()
+			}
+			switch labels["volume_id"] {
+			case "unused":
+				if m.Gauge.GetValue() != 0 || labels["appliance_id"] != "a1" {
+					t.Fatal("invalid zero labels/value")
+				}
+				zeros++
+			case "good":
+				if m.Gauge.GetValue() != 7 {
+					t.Fatal("real sample changed")
+				}
+				good++
+			default:
+				t.Fatal("invalid or excluded sample emitted")
+			}
+		}
+	}
+	if zeros != len(metricVolumeCollectorMetric) || good != 1 {
+		t.Fatalf("zeros=%d good=%d", zeros, good)
+	}
+	for _, msg := range []string{"volume_id=bad-name", "volume_id=absent", "displaying zero"} {
+		if !strings.Contains(logs.String(), msg) {
+			t.Errorf("missing diagnostic %s", msg)
+		}
+	}
+	// Invalidated cache must never create fallback zeros.
+	bc.MaxAge = time.Nanosecond
+	fs, err = reg.Gather()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range fs {
+		if strings.HasPrefix(f.GetName(), "powerstore_metricVolume_") {
+			t.Fatal("stale cache emitted data")
+		}
 	}
 }

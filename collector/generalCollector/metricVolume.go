@@ -97,7 +97,7 @@ func (c *metricVolumeCollector) Collect(ch chan<- prometheus.Metric) {
 					"volume_id", id, "volume_name", volumeArray["volume"][id].String(), "err", err)
 			}
 		}
-		volumeData, err := readVolumePerformanceBulk(c.bulkClient, volumeArray["volume"], report)
+		volumeData, err := readVolumePerformanceBulk(c.bulkClient, volumeArray["volume"], volumeArray["volume_appliance"], report)
 		if err != nil {
 			report("", err)
 			return

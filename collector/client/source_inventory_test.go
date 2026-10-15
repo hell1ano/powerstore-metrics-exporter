@@ -35,3 +35,24 @@ func TestSourceInventoryAndVolumeStatusQueries(t *testing.T) {
 		}
 	}
 }
+
+func TestVolumeInventoryApplianceIdentity(t *testing.T) {
+	utils.InitReqCounter(2)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/volume" {
+			if r.URL.Query().Get("select") != "id,name,appliance_id" {
+				t.Error("appliance identity not requested")
+			}
+			fmt.Fprint(w, `[{"id":"v1","name":"volume-one","appliance_id":"A1"}]`)
+		} else {
+			fmt.Fprint(w, `[]`)
+		}
+	}))
+	defer srv.Close()
+	c := &Client{IP: "volume-appliance-test", baseUrl: srv.URL + "/", http: srv.Client(), logger: log.NewNopLogger()}
+	defer delete(PowerstoreModuleID, c.IP)
+	c.InitModuleID(log.NewNopLogger())
+	if ModuleIDs(c.IP)["volume_appliance"]["v1"].String() != "A1" {
+		t.Fatal("missing appliance inventory")
+	}
+}

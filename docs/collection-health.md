@@ -371,15 +371,25 @@ Partial filesystem output and stable ID-based item keys remain unchanged.
 
 ### Partial volume performance
 
-Bulk volume performance now retains usable samples for selected inventory objects
-when other selected volumes have no performance row. Missing volumes produce no
-fabricated zero values. Each affected volume is logged with array address, ID and
-inventory name; identical warnings are limited to once per five minutes per
-object/error, while collection health fails on every incomplete scrape. A fully
-successful scrape resets warning suppression and advances last success.
+Bulk volume performance retains usable samples for selected inventory objects
+when another volume has an object-level error. A missing performance row in an
+otherwise valid, fresh bulk module is displayed as zero for all exported volume
+performance fields, without a manual unused-volume list. Inventory now includes
+appliance_id to preserve the same metric labels as measured rows. A missing
+inventory name or appliance ID prevents zero filling for that object and is logged.
+
+Zero filling is the selected monitoring policy, not a PowerStore measurement or
+proof that the volume is idle. Collection success stays zero and last-success is
+not advanced when rows are absent. Named per-volume warnings distinguish the
+fallback from measured zeros; identical warnings are limited to once every five
+minutes per object/error. Existing measured values take precedence; missing fields
+within an existing row are not zero-filled. A fully successful scrape resets warning
+suppression and advances last success.
 
 Source-only selection, both-sides volume Metro eligibility and archive integrity
 and freshness checks remain unchanged. Missing inventory or invalid/stale archives
-still fail collection. Volume-group collection is unchanged. Rebuild and redeploy
-the exporter for this fix; no YAML parameter or Zabbix template changes are needed.
-This preserves available data; it does not recover measurements omitted by PowerStore.
+still fail collection, without generating zeros. Volume-group collection is
+unchanged. Rebuild/restart the exporter to load appliance IDs into inventory;
+no YAML parameter or Zabbix template changes are required for zero filling.
+This preserves available data and displays absent rows as zero; it does not recover
+measurements omitted by PowerStore.

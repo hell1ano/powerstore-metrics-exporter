@@ -251,7 +251,7 @@ func (c *Client) GetVolumeGroupId() (string, error) {
 }
 
 func (c *Client) GetVolumeId() (string, error) {
-	return c.getData("volume?select=id,name&"+sourceObjectFilter+"&limit="+strconv.Itoa(c.limit), "GET", "")
+	return c.getData("volume?select=id,name,appliance_id&"+sourceObjectFilter+"&limit="+strconv.Itoa(c.limit), "GET", "")
 }
 
 func (c *Client) GetEthPortId() (string, error) {
@@ -318,6 +318,13 @@ func (c *Client) loadInventory(logger log.Logger, missingOnly bool) {
 		if err != nil {
 			level.Error(logger).Log("msg", "inventory refresh failed", "ip", c.IP, "module", module, "err", err)
 			continue
+		}
+		if module == "volume" {
+			appliances := make(map[string]gjson.Result)
+			for _, volume := range gjson.Parse(data).Array() {
+				appliances[volume.Get("id").String()] = volume.Get("appliance_id")
+			}
+			snapshot["volume_appliance"] = appliances
 		}
 		if module == "nas" {
 			roles := make(map[string]gjson.Result)
