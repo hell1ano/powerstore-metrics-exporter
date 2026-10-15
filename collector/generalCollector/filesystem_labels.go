@@ -19,25 +19,35 @@ func filesystemLabels(inventory map[string]map[string]gjson.Result, id string) (
 	if id == "" {
 		return nil, fmt.Errorf("sample has no file_system_id")
 	}
-	if _, exists := inventory["filesystem"][id]; !exists {
-		return nil, fmt.Errorf("filesystem ID absent from inventory")
-	}
+	labels := []string{name, id, nasID, nasName}
 	if name == "" {
-		return nil, fmt.Errorf("filesystem inventory name is empty")
-	}
-	if nasID == "" {
-		return nil, fmt.Errorf("filesystem inventory has no nas_server_id")
-	}
-	if inventory["nas"] == nil {
-		return nil, fmt.Errorf("NAS inventory unavailable")
-	}
-	if _, exists := inventory["nas"][nasID]; !exists {
-		return nil, fmt.Errorf("NAS ID absent from NAS inventory")
+		labels[0] = id
 	}
 	if nasName == "" {
-		return nil, fmt.Errorf("NAS inventory name is empty")
+		labels[3] = "unknown"
+		if nasID != "" {
+			labels[3] = nasID
+		}
 	}
-	return []string{name, id, nasID, nasName}, nil
+	if _, exists := inventory["filesystem"][id]; !exists {
+		return labels, fmt.Errorf("filesystem ID absent from inventory; displaying available data by ID")
+	}
+	if name == "" {
+		return labels, fmt.Errorf("filesystem inventory name is empty; displaying ID")
+	}
+	if nasID == "" {
+		return labels, fmt.Errorf("filesystem inventory has no nas_server_id")
+	}
+	if inventory["nas"] == nil {
+		return labels, fmt.Errorf("NAS inventory unavailable")
+	}
+	if _, exists := inventory["nas"][nasID]; !exists {
+		return labels, fmt.Errorf("NAS ID absent from NAS inventory")
+	}
+	if nasName == "" {
+		return labels, fmt.Errorf("NAS inventory name is empty")
+	}
+	return labels, nil
 }
 
 // Log local troubleshooting context as well as marking collection unsuccessful.
@@ -56,23 +66,34 @@ func reportFilesystemError(ch chan<- prometheus.Metric, logger log.Logger, ip, c
 // Health fails on every scrape. Only identical repeated log details are throttled.
 type filesystemFailureLog struct {
 	mu   sync.Mutex
-	key  string
-	last time.Time
+	last map[string]time.Time
 }
 
 func (s *filesystemFailureLog) allow(key string, now time.Time) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.key == key && now.Sub(s.last) < 5*time.Minute {
+	if s.last == nil {
+		s.last = make(map[string]time.Time)
+	}
+	if last, ok := s.last[key]; ok && now.Sub(last) < 5*time.Minute {
 		return false
 	}
-	s.key = key
-	s.last = now
+	// Bound memory while retaining independent suppression for different objects.
+	if len(s.last) >= 4096 {
+		oldestKey := ""
+		oldest := now
+		for k, t := range s.last {
+			if !t.After(oldest) {
+				oldestKey, oldest = k, t
+			}
+		}
+		delete(s.last, oldestKey)
+	}
+	s.last[key] = now
 	return true
 }
 func (s *filesystemFailureLog) reset() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.key = ""
-	s.last = time.Time{}
+	s.last = nil
 }

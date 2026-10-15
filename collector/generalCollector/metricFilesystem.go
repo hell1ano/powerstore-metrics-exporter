@@ -107,11 +107,7 @@ func (c *metricFilesystemCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 	if c.isEnableBulk {
 		filesystemArray := inventory
-		if filesystemArray["filesystem"] == nil {
-			report("", fmt.Errorf("inventory unavailable"))
-			return
-		}
-		filesystemData, err := readBulkForObjects(c.bulkClient, "PerformanceMetricsByFileSystem", "file_system_id", filesystemArray["filesystem"], metricFilesystemCollectorMetric)
+		filesystemData, err := readFilesystemBulk(c.bulkClient, "PerformanceMetricsByFileSystem", filesystemArray, metricFilesystemCollectorMetric, report)
 		if err != nil {
 			report("", err)
 			return
@@ -122,7 +118,9 @@ func (c *metricFilesystemCollector) Collect(ch chan<- prometheus.Metric) {
 			labels, err := filesystemLabels(filesystemArray, filesystemID)
 			if err != nil {
 				report(filesystemID, err)
-				continue
+				if labels == nil {
+					continue
+				}
 			}
 			for _, metricName := range metricFilesystemCollectorMetric {
 				metricValue := data.Get(metricName)
@@ -140,13 +138,18 @@ func (c *metricFilesystemCollector) Collect(ch chan<- prometheus.Metric) {
 			return
 		}
 		for filesystemId := range fileSystemArray["filesystem"] {
+			if filesystemDestination(fileSystemArray, filesystemId) {
+				continue
+			}
 			wg.Add(1)
 			go func(filesystemId string) {
 				labels, labelErr := filesystemLabels(fileSystemArray, filesystemId)
 				defer wg.Done()
 				if labelErr != nil {
 					report(filesystemId, labelErr)
-					return
+					if labels == nil {
+						return
+					}
 				}
 				filesystemData, err := c.client.GetMetricsFilesystem(filesystemId)
 				if err != nil {

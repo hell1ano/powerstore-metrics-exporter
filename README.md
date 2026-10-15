@@ -73,7 +73,10 @@ Restart or refresh inventory after object or replication-role changes.
   The API reports the destination flag as false on both sides. Do not sum both
   copies as unique logical capacity.
 - Filesystems: Primary inventory, including clones; snapshots are excluded.
-  Filesystem metrics include stable filesystem IDs and NAS ownership.
+  Filesystems on confirmed replication-destination NAS servers are also excluded.
+  Filesystem metrics include stable filesystem IDs and NAS ownership. Available
+  samples survive missing inventory/ownership references, with ID fallback labels,
+  per-object warnings and failed collector health for incomplete results.
 - Volume/group bulk records outside the selected local inventory are ignored.
   Missing supported measurements for selected objects still fail collection.
   No cross-array source-ID correlation is performed.

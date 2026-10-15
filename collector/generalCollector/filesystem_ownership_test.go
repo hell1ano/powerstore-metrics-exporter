@@ -23,6 +23,7 @@ func TestFilesystemOwnershipInBothCollectionModes(t *testing.T) {
 			t.Run(fmt.Sprintf("bulk=%v/performance=%v", bulk, performance), func(t *testing.T) {
 				nasName := "NAS-one"
 				missingOwner := false
+				destination := false
 				srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					switch r.URL.Path {
 					case "/api/rest/file_system":
@@ -31,10 +32,13 @@ func TestFilesystemOwnershipInBothCollectionModes(t *testing.T) {
 						}
 						fmt.Fprint(w, `[{"id":"fs1","name":"shared","nas_server_id":"nas1"},{"id":"fs2","name":"shared","nas_server_id":"nas2"}]`)
 					case "/api/rest/nas_server":
+						if !strings.Contains(r.URL.Query().Get("select"), "is_replication_destination") {
+							t.Error("NAS replication role not requested")
+						}
 						if missingOwner {
 							fmt.Fprint(w, `[]`)
 						} else {
-							fmt.Fprintf(w, `[{"id":"nas1","name":%q},{"id":"nas2","name":"NAS-two"}]`, nasName)
+							fmt.Fprintf(w, `[{"id":"nas1","name":%q,"is_replication_destination":%t},{"id":"nas2","name":"NAS-two"}]`, nasName, destination)
 						}
 					case "/api/rest/metrics/generate":
 						var body client.RequestBody
@@ -71,11 +75,12 @@ func TestFilesystemOwnershipInBothCollectionModes(t *testing.T) {
 					collector = NewMetricFilesystemCollector(api, bc, logger)
 				}
 				registry.MustRegister(Monitored(api.IP, "filesystem", true, collector))
-				for _, stage := range []string{"initial", "renamed", "missing", "recovered"} {
+				for _, stage := range []string{"initial", "renamed", "missing", "destination", "recovered"} {
 					if stage == "renamed" {
 						nasName = "NAS-renamed"
 					}
 					missingOwner = stage == "missing"
+					destination = stage == "destination"
 					logs.Reset()
 					api.InitModuleID(logger)
 					families, err := registry.Gather()
@@ -111,8 +116,12 @@ func TestFilesystemOwnershipInBothCollectionModes(t *testing.T) {
 						if strings.Contains(logs.String(), "is successful") {
 							t.Error("false success log")
 						}
-						if health != 0 || len(seen) != 0 {
-							t.Fatal("missing ownership reported success")
+						if health != 0 || len(seen) != 2 || seen["fs1"] != "nas1/nas1" || seen["fs2"] != "nas2/nas2" {
+							t.Fatal("missing ownership did not preserve data with failed health")
+						}
+					} else if destination {
+						if health != 1 || len(seen) != 1 || seen["fs2"] != "nas2/NAS-two" {
+							t.Fatalf("destination not excluded: %v health=%v", seen, health)
 						}
 					} else {
 						if health != 1 || len(seen) != 2 || seen["fs1"] != "nas1/"+nasName || seen["fs2"] != "nas2/NAS-two" {

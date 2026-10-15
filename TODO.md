@@ -145,3 +145,13 @@ workaround; that reported issue remains open. Production logs remain private.
 - [x] Host logging and rotation handled by the operator; close the deployment
   follow-up at their request.
 - [x] Metro policy confirmed: retain monitoring on both local Metro endpoints.
+
+
+## Filesystem pilot follow-up
+
+- [x] Exclude filesystems on confirmed replication-destination NAS servers.
+- [x] Preserve available filesystem samples when other measurements/references
+  are missing, with fallback labels, per-object logs and failed health.
+- [ ] Rebuild/restart and verify source filesystem values, destination exclusion
+  and any remaining per-object warnings. One destination was confirmed; the
+  other missing objects have not all been classified.

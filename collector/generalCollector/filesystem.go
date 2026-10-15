@@ -78,11 +78,7 @@ func (c *fileSystemCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 	if c.isEnableBulk {
 		filesystemArray := inventory
-		if filesystemArray["filesystem"] == nil {
-			report("", fmt.Errorf("inventory unavailable"))
-			return
-		}
-		filesystemData, err := readBulkForObjects(c.bulkClient, "SpaceMetricsByFilesystem", "file_system_id", filesystemArray["filesystem"], metricFileSystemCollector)
+		filesystemData, err := readFilesystemBulk(c.bulkClient, "SpaceMetricsByFilesystem", filesystemArray, metricFileSystemCollector, report)
 		if err != nil {
 			report("", err)
 			return
@@ -93,7 +89,9 @@ func (c *fileSystemCollector) Collect(ch chan<- prometheus.Metric) {
 			labels, err := filesystemLabels(filesystemArray, filesystemID)
 			if err != nil {
 				report(filesystemID, err)
-				continue
+				if labels == nil {
+					continue
+				}
 			}
 			for _, metricName := range metricFileSystemCollector {
 				metricValue := data.Get(metricName)
@@ -110,15 +108,20 @@ func (c *fileSystemCollector) Collect(ch chan<- prometheus.Metric) {
 			return
 		}
 		for filesystemID := range moduleIDArray["filesystem"] {
+			if filesystemDestination(moduleIDArray, filesystemID) {
+				continue
+			}
 			labels, err := filesystemLabels(moduleIDArray, filesystemID)
 			if err != nil {
 				report(filesystemID, err)
-				continue
+				if labels == nil {
+					continue
+				}
 			}
 			filesystemData, err := c.client.GetFilesystemCap(filesystemID)
 			if err != nil {
 				report(filesystemID, err)
-				return
+				continue
 			}
 			filesystemArray := gjson.Parse(filesystemData).Array()
 			if len(filesystemArray) == 0 {

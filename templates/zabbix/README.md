@@ -149,3 +149,9 @@ collection and must not be mistaken for intentionally excluded objects.
 The exporter now has separate client-request and PowerStore/activity logs with
 configurable rotation. See the [main README](../../README.md#logs-and-rotation)
 for paths and settings. Neither log splitting nor caching changes Zabbix item keys.
+
+Filesystem partial results retain available values while collection-health items
+report failure. Missing names use stable IDs; unknown NAS names display a known
+NAS ID or `unknown`. These labels may resolve after inventory refresh without
+changing ID-based item keys. Filesystems on confirmed destination NAS servers are
+excluded. Upgrade/restart the exporter to load NAS replication roles.

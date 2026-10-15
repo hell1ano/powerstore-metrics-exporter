@@ -273,3 +273,15 @@ using pinned lumberjack v2.2.1. Preserve old path settings by deriving a sibling
 access filename; allow stdout duplication to be disabled. Test concurrent stream
 routing, transport success/failure and secret exclusion, oversized existing-file
 rotation, backup retention and invalid settings. Document Podman directory mounts.
+
+## Filesystem destination ownership and partial results
+
+A pilot response confirmed a Primary filesystem owned by a replication-destination
+NAS. Read NAS replication roles in the existing inventory request and exclude
+confirmed destination filesystems in both collection modes. Keep valid filesystem
+measurements when other IDs or references are missing, using ID-based fallback
+labels and per-object warnings. Keep failed collection health and unchanged last
+success for partial scrapes; preserve archive integrity/freshness checks. Throttle
+repeated errors independently per object with bounded memory. Synthetic tests cover
+both modes, destination filtering, missing ownership, partial bulk data, recovery
+and repeated diagnostics. No private responses, names or IDs are committed.

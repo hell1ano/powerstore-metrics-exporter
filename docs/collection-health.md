@@ -125,7 +125,8 @@ is unchanged. Live interval behavior still requires the PowerStoreOS 5 pilot.
 Filesystem metrics retain the `name` label and add `file_system_id`,
 `nas_server_id` and `nas_server_name`. The filesystem-to-NAS join uses the same
 inventory snapshot as the names. Missing ownership reports collection failure
-rather than assigning a guessed NAS name. Equal names on different NAS servers
+while preserving available samples with NAS ID or `unknown` display labels.
+Missing filesystem names use the filesystem ID. Equal names on different NAS servers
 remain distinct through their IDs.
 
 Zabbix dependent discovery processes the exporter response on its own schedule;
@@ -138,7 +139,7 @@ An empty exporter name does not establish that a filesystem has no name on the
 array. It can mean the metric's filesystem ID was not found in the exporter's
 inventory snapshot. Both filesystem collectors log failures at warning level with
 array IP, collector, filesystem ID, known filesystem name, NAS ID and the reason.
-For a bulk coverage failure, the error lists every affected filesystem ID. Invalid
+Filesystem coverage warnings identify individual affected IDs. Invalid
 inventory responses log at error level with the resource class and offending IDs.
 
 Reasons distinguish an unknown filesystem ID, an empty inventory name, missing
@@ -229,11 +230,12 @@ change scrape frequency; the NAS cache controls the rate of NAS status refreshes
 
 Filesystem inventory requests `filesystem_type=eq.Primary`, covering normal
 filesystems and clones, excluding snapshots. Restart after upgrading so the
-startup inventory uses this filter. Primary-filesystem coverage and ownership
-checks remain strict; unknown metric IDs are not silently ignored.
+startup inventory uses this filter. Confirmed destination NAS ownership excludes
+the filesystem from both capacity and performance, in bulk and direct modes.
+Missing measurements or references fail health but no longer discard other data.
 
 Bulk coverage errors show a total count and at most ten sorted examples. Identical
-filesystem error summaries repeat no more than once per five minutes, while health
+filesystem object/error pairs repeat no more than once per five minutes, while health
 metrics continue to indicate failure on every affected scrape. Successful recovery
 resets the log suppression. Large-volume diagnostic changes supersede the earlier
 statement that every offending ID is included in each log entry.
@@ -329,3 +331,26 @@ Mount the directory, not individual files, because rotation renames files.
 Verify both host files appear, trigger a monitoring request, and confirm the
 request entry goes only into requests.log. Recreate the container and verify
 history remains. Host permissions, SELinux and persistence need a live Podman pilot.
+
+## Partial filesystem collection
+
+Filesystem collection retains usable numeric samples even if other expected IDs
+are missing or a sample has no matching inventory/NAS reference. Such samples
+keep file_system_id; name falls back to that ID, nas_server_name falls back to the
+known NAS ID or `unknown`, and unavailable nas_server_id stays empty. Warnings
+identify affected IDs and the known filesystem name/NAS ID. Collector success is
+zero and last-success does not advance while errors remain. Missing measurements
+are not replaced with zeros. Zabbix can display values while reporting incomplete
+collection; ID-based item keys remain unchanged when names recover.
+
+NAS inventory now requests is_replication_destination. Only confirmed destination
+ownership excludes a filesystem. Unknown references cannot prove replication role
+or snapshot eligibility, so those available rows are retained with failure health
+instead of silently classified. Inventory remains startup-only by default: restart
+to load the new role field. NAS status monitoring itself is unchanged.
+
+Archive integrity and freshness checks still apply before rows are emitted; a
+corrupt, invalid or stale archive is not accepted for partial collection. Direct
+mode needs inventory IDs to request samples. Per-object logging is throttled for
+five minutes per identical error (up to 4096 tracked pairs); changed errors log
+immediately and a fully successful scrape clears suppression.
