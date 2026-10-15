@@ -155,3 +155,8 @@ workaround; that reported issue remains open. Production logs remain private.
 - [ ] Rebuild/restart and verify source filesystem values, destination exclusion
   and any remaining per-object warnings. One destination was confirmed; the
   other missing objects have not all been classified.
+
+- [x] Refine filesystem exclusion to NAS destination=true AND non-empty NAS
+  protection policy, for async and synchronous NAS replication. Null policy
+  remains eligible; volume Metro retains both sides.
+- [ ] Pilot the refined rule after restart and inspect remaining missing data.

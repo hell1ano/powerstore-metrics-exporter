@@ -267,7 +267,7 @@ func (c *Client) GetDrivesId() (string, error) {
 }
 
 func (c *Client) GetNasId() (string, error) {
-	return c.getData("nas_server?select=id,name,is_replication_destination&limit="+strconv.Itoa(c.limit), "GET", "")
+	return c.getData("nas_server?select=id,name,is_replication_destination,protection_policy_id&limit="+strconv.Itoa(c.limit), "GET", "")
 }
 
 func (c *Client) GetFilesystemId() (string, error) {
@@ -321,10 +321,13 @@ func (c *Client) loadInventory(logger log.Logger, missingOnly bool) {
 		}
 		if module == "nas" {
 			roles := make(map[string]gjson.Result)
+			policies := make(map[string]gjson.Result)
 			for _, nas := range gjson.Parse(data).Array() {
 				roles[nas.Get("id").String()] = nas.Get("is_replication_destination")
+				policies[nas.Get("id").String()] = nas.Get("protection_policy_id")
 			}
 			snapshot["nas_destination"] = roles
+			snapshot["nas_policy"] = policies
 		}
 		if module == "filesystem" {
 			owners := make(map[string]gjson.Result)

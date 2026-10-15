@@ -5,11 +5,15 @@ import (
 	"fmt"
 	"github.com/tidwall/gjson"
 	"powerstore-metrics-exporter/collector/bulkClient"
+	"strings"
 )
 
 func filesystemDestination(inventory map[string]map[string]gjson.Result, id string) bool {
 	owner := inventory["filesystem_nas"][id].String()
-	return inventory["nas_destination"][owner].Type == gjson.True
+	policy := inventory["nas_policy"][owner]
+	// NAS async and synchronous destinations use the same monitoring rule.
+	// A retained destination flag without a policy is not enough to exclude data.
+	return inventory["nas_destination"][owner].Type == gjson.True && policy.Type == gjson.String && strings.TrimSpace(policy.String()) != ""
 }
 
 // A bad object must not hide usable samples from other filesystems. Archive

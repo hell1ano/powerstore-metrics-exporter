@@ -34,6 +34,7 @@ func TestPartialFilesystemBulk(t *testing.T) {
 				"filesystem":      {"good": str("healthy"), "orphan": str(""), "destination": str("replica"), "missing": str("absent"), "nonumeric": str("empty")},
 				"filesystem_nas":  {"good": str("nas"), "destination": str("dest")},
 				"nas":             {"nas": str("source"), "dest": str("replication")},
+				"nas_policy":      {"dest": str("policy")},
 				"nas_destination": {"dest": gjson.Parse("true")},
 			}
 			client.PowerstoreModuleID[api.IP] = inv
@@ -84,6 +85,37 @@ func TestPartialFilesystemBulk(t *testing.T) {
 			// Info messages may repeat, but object warnings must be suppressed independently.
 			if strings.Contains(logs.String()[before:], "filesystem collection failed") {
 				t.Fatal("repeated per-object errors not throttled")
+			}
+		})
+	}
+}
+
+func TestNASDestinationPolicyEligibility(t *testing.T) {
+	for _, tc := range []struct {
+		name, role, policy string
+		skip               bool
+	}{
+		{"async destination", "true", `"policy"`, true},
+		{"NAS metro destination", "true", `"policy"`, true},
+		{"source with policy", "false", `"policy"`, false},
+		{"retained flag no policy", "true", "null", false},
+		{"missing policy", "true", "", false},
+		{"empty policy", "true", `""`, false},
+		{"whitespace policy", "true", `"  "`, false},
+		{"invalid policy", "true", "42", false},
+		{"unknown role", "", `"policy"`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			inv := map[string]map[string]gjson.Result{
+				"filesystem_nas":  {"fs": gjson.Parse(`"nas"`)},
+				"nas_destination": {"nas": gjson.Parse(tc.role)},
+				"nas_policy":      {"nas": gjson.Parse(tc.policy)},
+			}
+			if got := filesystemDestination(inv, "fs"); got != tc.skip {
+				t.Fatalf("excluded=%v want %v", got, tc.skip)
+			}
+			if filesystemDestination(inv, "unknown") {
+				t.Fatal("unknown ownership excluded")
 			}
 		})
 	}

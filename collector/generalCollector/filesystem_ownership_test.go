@@ -24,6 +24,7 @@ func TestFilesystemOwnershipInBothCollectionModes(t *testing.T) {
 				nasName := "NAS-one"
 				missingOwner := false
 				destination := false
+				policy := `"policy"`
 				srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					switch r.URL.Path {
 					case "/api/rest/file_system":
@@ -32,13 +33,13 @@ func TestFilesystemOwnershipInBothCollectionModes(t *testing.T) {
 						}
 						fmt.Fprint(w, `[{"id":"fs1","name":"shared","nas_server_id":"nas1"},{"id":"fs2","name":"shared","nas_server_id":"nas2"}]`)
 					case "/api/rest/nas_server":
-						if !strings.Contains(r.URL.Query().Get("select"), "is_replication_destination") {
+						if !strings.Contains(r.URL.Query().Get("select"), "is_replication_destination") || !strings.Contains(r.URL.Query().Get("select"), "protection_policy_id") {
 							t.Error("NAS replication role not requested")
 						}
 						if missingOwner {
 							fmt.Fprint(w, `[]`)
 						} else {
-							fmt.Fprintf(w, `[{"id":"nas1","name":%q,"is_replication_destination":%t},{"id":"nas2","name":"NAS-two"}]`, nasName, destination)
+							fmt.Fprintf(w, `[{"id":"nas1","name":%q,"is_replication_destination":%t,"protection_policy_id":%s},{"id":"nas2","name":"NAS-two"}]`, nasName, destination, policy)
 						}
 					case "/api/rest/metrics/generate":
 						var body client.RequestBody
@@ -75,12 +76,19 @@ func TestFilesystemOwnershipInBothCollectionModes(t *testing.T) {
 					collector = NewMetricFilesystemCollector(api, bc, logger)
 				}
 				registry.MustRegister(Monitored(api.IP, "filesystem", true, collector))
-				for _, stage := range []string{"initial", "renamed", "missing", "destination", "recovered"} {
+				for _, stage := range []string{"initial", "renamed", "missing", "destination", "destination-no-policy", "destination-empty-policy", "recovered"} {
 					if stage == "renamed" {
 						nasName = "NAS-renamed"
 					}
 					missingOwner = stage == "missing"
-					destination = stage == "destination"
+					destination = strings.HasPrefix(stage, "destination")
+					policy = `"policy"`
+					if stage == "destination-no-policy" {
+						policy = "null"
+					}
+					if stage == "destination-empty-policy" {
+						policy = `""`
+					}
 					logs.Reset()
 					api.InitModuleID(logger)
 					families, err := registry.Gather()
@@ -119,7 +127,7 @@ func TestFilesystemOwnershipInBothCollectionModes(t *testing.T) {
 						if health != 0 || len(seen) != 2 || seen["fs1"] != "nas1/nas1" || seen["fs2"] != "nas2/nas2" {
 							t.Fatal("missing ownership did not preserve data with failed health")
 						}
-					} else if destination {
+					} else if stage == "destination" {
 						if health != 1 || len(seen) != 1 || seen["fs2"] != "nas2/NAS-two" {
 							t.Fatalf("destination not excluded: %v health=%v", seen, health)
 						}

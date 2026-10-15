@@ -285,3 +285,12 @@ success for partial scrapes; preserve archive integrity/freshness checks. Thrott
 repeated errors independently per object with bounded memory. Synthetic tests cover
 both modes, destination filtering, missing ownership, partial bulk data, recovery
 and repeated diagnostics. No private responses, names or IDs are committed.
+
+## NAS destination policy refinement
+
+Read protection_policy_id in the existing local NAS inventory request. Exclude
+filesystem samples only for destination=true with a non-empty NAS policy string.
+Apply equally to async and synchronous NAS replication; preserve the separate
+both-sides volume Metro policy. Retained flags without policy no longer hide data.
+Synthetic tests cover null/missing/empty policies and direct/bulk capacity and
+performance through inventory refresh. Production examples remain private.

@@ -354,3 +354,17 @@ corrupt, invalid or stale archive is not accepted for partial collection. Direct
 mode needs inventory IDs to request samples. Per-object logging is throttled for
 five minutes per identical error (up to 4096 tracked pairs); changed errors log
 immediately and a fully successful scrape clears suppression.
+
+### NAS destination policy condition
+
+For filesystem monitoring, exclude an owning NAS only when
+`is_replication_destination=true` **and** its `protection_policy_id` is a non-empty
+string. Use the NAS policy, not the filesystem policy. This rule applies to both
+asynchronous NAS replication and synchronous NAS Metro. A null, missing or empty
+policy keeps available filesystem measurements eligible; missing measurements
+still produce warnings and failed collection health. This is the selected monitoring
+policy, not proof of a currently active replication session.
+
+Volume Metro remains a separate feature: both volume sides stay monitored.
+Restart after upgrading to load the NAS policy field into startup inventory.
+Partial filesystem output and stable ID-based item keys remain unchanged.

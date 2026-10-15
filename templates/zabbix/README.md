@@ -155,3 +155,17 @@ report failure. Missing names use stable IDs; unknown NAS names display a known
 NAS ID or `unknown`. These labels may resolve after inventory refresh without
 changing ID-based item keys. Filesystems on confirmed destination NAS servers are
 excluded. Upgrade/restart the exporter to load NAS replication roles.
+
+### NAS destination policy condition
+
+For filesystem monitoring, exclude an owning NAS only when
+`is_replication_destination=true` **and** its `protection_policy_id` is a non-empty
+string. Use the NAS policy, not the filesystem policy. This rule applies to both
+asynchronous NAS replication and synchronous NAS Metro. A null, missing or empty
+policy keeps available filesystem measurements eligible; missing measurements
+still produce warnings and failed collection health. This is the selected monitoring
+policy, not proof of a currently active replication session.
+
+Volume Metro remains a separate feature: both volume sides stay monitored.
+Restart after upgrading to load the NAS policy field into startup inventory.
+Partial filesystem output and stable ID-based item keys remain unchanged.

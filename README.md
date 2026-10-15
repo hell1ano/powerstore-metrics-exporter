@@ -184,3 +184,17 @@ starting point. Grafana can visualize either monitoring backend.
 See [collection health](docs/collection-health.md) for metric semantics, failure
 behaviour and limitations. For local verification, run `go test ./...` and
 `go vet ./...`; CI also runs the tests with race detection on Linux.
+
+### NAS destination policy condition
+
+For filesystem monitoring, exclude an owning NAS only when
+`is_replication_destination=true` **and** its `protection_policy_id` is a non-empty
+string. Use the NAS policy, not the filesystem policy. This rule applies to both
+asynchronous NAS replication and synchronous NAS Metro. A null, missing or empty
+policy keeps available filesystem measurements eligible; missing measurements
+still produce warnings and failed collection health. This is the selected monitoring
+policy, not proof of a currently active replication session.
+
+Volume Metro remains a separate feature: both volume sides stay monitored.
+Restart after upgrading to load the NAS policy field into startup inventory.
+Partial filesystem output and stable ID-based item keys remain unchanged.
