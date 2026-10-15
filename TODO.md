@@ -161,8 +161,16 @@ workaround; that reported issue remains open. Production logs remain private.
   remains eligible; volume Metro retains both sides.
 - [ ] Pilot the refined rule after restart and inspect remaining missing data.
 
-## Source NAS host discovery
+## Deferred NAS host discovery
 
-- [x] Add exporter-wide discovery, stable NAS-name identities and scoped child metrics.
-- [x] Add Zabbix 7 NAS host bundle, movement/conflict/cache tests and migration instructions.
-- [ ] Live pilot: import bundle, verify inherited URL and same host ID after source movement.
+- [ ] One Zabbix host per source NAS, retaining identity across PowerStore moves.
+  The tested exporter-based implementation is preserved on branch
+  `codex/nas-host-discovery` at commit `5a1e729`. It is deferred to avoid another
+  exporter deployment. Main retains the existing array template and endpoints.
+  A Zabbix-only replacement has not been implemented: existing NAS status metrics
+  do not expose replication role/policy, and per-array host discovery cannot
+  automatically adopt hosts owned by another discovery rule.
+- To resume the preserved implementation after its revert on main, reapply the
+  two feature commits (7dfd611 and 5a1e729), or revert the deferral commit after
+  reviewing later changes. Merging the saved branch alone will not restore
+  changes that were already merged and then reverted.

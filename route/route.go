@@ -51,8 +51,6 @@ func Run(config *utils.Config, logger log.Logger) error {
 	r := gin.New()
 	r.Use(requestLogging(log.With(logger, "stream", "client_request")), gin.Recovery())
 	gin.SetMode(gin.ReleaseMode)
-	nasArrays := map[string]nasArrayMetrics{}
-	var nasIPs []string
 	var initialize []func()
 	var readiness []func() bool
 	for _, storage := range config.StorageList {
@@ -179,9 +177,6 @@ func Run(config *utils.Config, logger log.Logger) error {
 		VolumeGroupRegistry.MustRegister(generalCollector.Monitored(storage.Ip, "volume_group_performance", true, generalCollector.NewMetricVgCollector(client, bc, logger)))
 		HardwareRegistry.MustRegister(generalCollector.Monitored(storage.Ip, "drive_wear", true, generalCollector.NewWearMetricCollector(client, bc, logger)))
 
-		nasIPs = append(nasIPs, storage.Ip)
-		nasArrays[storage.Ip] = nasArrayMetrics{nas: &nasGatherCache{source: NasRegistry}, file: &nasGatherCache{source: FileSystemRegistry}}
-
 		BulkRegistry := prometheus.NewPedanticRegistry()
 		BulkRegistry.MustRegister(bc)
 
@@ -201,7 +196,6 @@ func Run(config *utils.Config, logger log.Logger) error {
 		level.Info(logger).Log("msg", "PowerStore metric routes registered", "ip", storage.Ip)
 	}
 
-	registerNASHosts(r, nasIPs, nasArrays, logger)
 	registerHealth(r, readiness)
 	// exporter Performance
 	r.GET("/performance", func(context *gin.Context) {

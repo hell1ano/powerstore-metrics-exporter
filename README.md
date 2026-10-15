@@ -198,10 +198,3 @@ policy, not proof of a currently active replication session.
 Volume Metro remains a separate feature: both volume sides stay monitored.
 Restart after upgrading to load the NAS policy field into startup inventory.
 Partial filesystem output and stable ID-based item keys remain unchanged.
-
-## Source NAS hosts in Zabbix 7
-
-For one host per source NAS, including movement between PowerStores, import
-`zbx_export_nas_hosts_7.0.yaml` and use one exporter-wide discovery host.
-See [setup and migration instructions](templates/zabbix/NAS-hosts.md).
-Periodic `exporter.inventoryRefresh` is required for automatic move detection.
