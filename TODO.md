@@ -174,3 +174,14 @@ workaround; that reported issue remains open. Production logs remain private.
   two feature commits (7dfd611 and 5a1e729), or revert the deferral commit after
   reviewing later changes. Merging the saved branch alone will not restore
   changes that were already merged and then reverted.
+
+## Partial volume performance
+
+- [x] Retain available bulk volume performance when selected volumes are missing;
+  report failed health and named per-volume warnings without fabricating zeros.
+- [x] Test 40 missing objects, real zero values, source filtering, warning
+  suppression and recovery; privately replay the supplied CSV with synthetic
+  inventory and normalized timestamps. No production data committed.
+- [ ] Rebuild/redeploy and confirm valid volume performance in the live pilot.
+- [ ] Investigate why PowerStore omits selected volume performance rows; compare
+  the direct metrics API with the bulk archive. This fix does not recover absent data.

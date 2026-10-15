@@ -368,3 +368,18 @@ policy, not proof of a currently active replication session.
 Volume Metro remains a separate feature: both volume sides stay monitored.
 Restart after upgrading to load the NAS policy field into startup inventory.
 Partial filesystem output and stable ID-based item keys remain unchanged.
+
+### Partial volume performance
+
+Bulk volume performance now retains usable samples for selected inventory objects
+when other selected volumes have no performance row. Missing volumes produce no
+fabricated zero values. Each affected volume is logged with array address, ID and
+inventory name; identical warnings are limited to once per five minutes per
+object/error, while collection health fails on every incomplete scrape. A fully
+successful scrape resets warning suppression and advances last success.
+
+Source-only selection, both-sides volume Metro eligibility and archive integrity
+and freshness checks remain unchanged. Missing inventory or invalid/stale archives
+still fail collection. Volume-group collection is unchanged. Rebuild and redeploy
+the exporter for this fix; no YAML parameter or Zabbix template changes are needed.
+This preserves available data; it does not recover measurements omitted by PowerStore.

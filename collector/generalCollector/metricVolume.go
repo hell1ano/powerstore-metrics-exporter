@@ -65,6 +65,7 @@ type metricVolumeCollector struct {
 	bulkClient   *bulkClient.BulkClient
 	metrics      map[string]*prometheus.Desc
 	logger       log.Logger
+	failureLog   filesystemFailureLog
 }
 
 func NewMetricVolumeCollector(api *client.Client, bulkApi *bulkClient.BulkClient, logger log.Logger) *metricVolumeCollector {
@@ -87,11 +88,22 @@ func (c *metricVolumeCollector) Collect(ch chan<- prometheus.Metric) {
 			reportCollectionError(ch, fmt.Errorf("inventory unavailable"))
 			return
 		}
-		volumeData, err := readBulkForMonitoredObjects(c.bulkClient, "PerformanceMetricsByVolume", "volume_id", volumeArray["volume"], metricVolumeCollectorMetric)
-		if err != nil {
+		failed := false
+		report := func(id string, err error) {
+			failed = true
 			reportCollectionError(ch, err)
-			level.Warn(c.logger).Log("msg", "get volume performance data error", "err", err)
+			if c.failureLog.allow(id+":"+err.Error(), time.Now()) {
+				level.Warn(c.logger).Log("msg", "volume performance collection incomplete", "ip", c.client.IP,
+					"volume_id", id, "volume_name", volumeArray["volume"][id].String(), "err", err)
+			}
+		}
+		volumeData, err := readVolumePerformanceBulk(c.bulkClient, volumeArray["volume"], report)
+		if err != nil {
+			report("", err)
 			return
+		}
+		if !failed {
+			c.failureLog.reset()
 		}
 		volumeDataJson := gjson.Parse(volumeData)
 		for _, data := range volumeDataJson.Array() {
@@ -148,7 +160,7 @@ func (c *metricVolumeCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 		wg.Wait()
 	}
-	level.Info(c.logger).Log("msg", "Obtaining the performance volume is successful", "time", time.Since(startTime))
+	level.Info(c.logger).Log("msg", "Volume performance collection finished", "time", time.Since(startTime))
 }
 
 func (c *metricVolumeCollector) Describe(ch chan<- *prometheus.Desc) {
