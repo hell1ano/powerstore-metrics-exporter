@@ -267,7 +267,7 @@ func (c *Client) GetDrivesId() (string, error) {
 }
 
 func (c *Client) GetNasId() (string, error) {
-	return c.getData("nas_server?select=id,name&limit="+strconv.Itoa(c.limit), "GET", "")
+	return c.getData("nas_server?select=id,name,is_replication_destination&limit="+strconv.Itoa(c.limit), "GET", "")
 }
 
 func (c *Client) GetFilesystemId() (string, error) {
@@ -319,10 +319,12 @@ func (c *Client) loadInventory(logger log.Logger, missingOnly bool) {
 			level.Error(logger).Log("msg", "inventory refresh failed", "ip", c.IP, "module", module, "err", err)
 			continue
 		}
-		snapshot[module], err = resultToMap(data)
-		if err != nil {
-			level.Error(logger).Log("msg", "invalid inventory response", "ip", c.IP, "module", module, "err", err)
-			continue
+		if module == "nas" {
+			roles := make(map[string]gjson.Result)
+			for _, nas := range gjson.Parse(data).Array() {
+				roles[nas.Get("id").String()] = nas.Get("is_replication_destination")
+			}
+			snapshot["nas_destination"] = roles
 		}
 		if module == "filesystem" {
 			owners := make(map[string]gjson.Result)
@@ -331,6 +333,12 @@ func (c *Client) loadInventory(logger log.Logger, missingOnly bool) {
 			}
 			snapshot["filesystem_nas"] = owners
 		}
+		snapshot[module], err = resultToMap(data)
+		if err != nil {
+			level.Error(logger).Log("msg", "invalid inventory response", "ip", c.IP, "module", module, "err", err)
+			continue
+		}
+
 	}
 	inventoryMu.Lock()
 	PowerstoreModuleID[c.IP] = snapshot
