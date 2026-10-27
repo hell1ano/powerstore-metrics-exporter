@@ -89,16 +89,24 @@ func checkHealthCoverage(data string, expected map[string]gjson.Result, fields [
 	for _, row := range gjson.Parse(data).Array() {
 		id := row.Get("id").String()
 		seen[id] = true
-		for _, field := range fields {
-			value := row.Get(field)
-			if value.Type != gjson.String || value.String() == "" {
-				failures = append(failures, fmt.Errorf("id=%q: missing or invalid %s", id, field))
-			}
+		if err := checkStringFields(row, fields); err != nil {
+			failures = append(failures, err)
 		}
 	}
 	for id := range expected {
 		if !seen[id] {
 			failures = append(failures, fmt.Errorf("id=%q: known object missing from health response", id))
+		}
+	}
+	return errors.Join(failures...)
+}
+
+func checkStringFields(row gjson.Result, fields []string) error {
+	var failures []error
+	for _, field := range fields {
+		value := row.Get(field)
+		if value.Type != gjson.String || value.String() == "" {
+			failures = append(failures, fmt.Errorf("id=%q: missing or invalid %s", row.Get("id").String(), field))
 		}
 	}
 	return errors.Join(failures...)

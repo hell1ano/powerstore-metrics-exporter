@@ -21,6 +21,13 @@ Optional resources may legitimately produce zero samples. API errors and missing
 bulk modules are failures, including for optional resources: a missing response is
 not evidence that an array has no such resources.
 
+Port status and volume-group capacity check coverage against loaded inventory.
+Missing known objects and invalid identities fail health while valid objects remain
+visible. Port link state must be a JSON boolean; missing/null/string values are
+omitted with failed health, not converted to link-down. Auto/null port speed still
+exports zero by convention. Volume-group capacity requires a nonempty appliance-ID
+array and numeric capacity fields; invalid or missing values are not zero-filled.
+
 Successful collection time is **not source sample time**. In non-bulk mode this
 change reports collection errors, but does not assert freshness of historical API
 samples. Capacity defaults to the `Five_Mins` API interval in non-bulk mode; historical
@@ -85,7 +92,10 @@ timestamp formats on the target PowerStoreOS version before production rollout.
 Inventory loads at startup and publishes an immutable snapshot. Periodic refresh is
 disabled by default (`exporter.inventoryRefresh: "0"`). Set a duration such as `24h`
 or `1h` to opt in. Restart the exporter after inventory changes when using the
-startup-only default. This does not alter the bulk download schedule. Failed
+startup-only default for classes other than volumes. Successful `/volume` status
+scrapes refresh volume names, appliance mappings and source eligibility, even with
+`inventoryRefresh: "0"`; concurrent performance collection may use the previous
+snapshot for one scrape. This does not alter the bulk download schedule. Failed
 resource queries remain unavailable rather than appearing as an empty inventory.
 Bulk collectors reject missing or unmatched objects; newly created objects can
 report collection failure until a restart or configured inventory refresh and the
@@ -94,7 +104,8 @@ Hardware node descriptors no longer depend on the startup appliance list.
 
 GET collections follow `Content-Range` and use stable ID ordering, with a maximum
 requested page size of 2,000. Incomplete, inconsistent or failed pages fail the
-whole request. Authentication is retried once. See Dell's
+whole request. HTTP 401 and 302 authentication responses trigger one login and
+retry; redirects are not followed to login pages or other locations. See Dell's
 [pagination contract](https://www.dell.com/support/manuals/en-sg/powerstore-9000/pwrstr-apidevg/pagination?guid=guid-55d82d5c-baf1-4b96-9ad0-ead603800af8&lang=en-us).
 
 ## Array certificate verification
@@ -160,8 +171,8 @@ credentials are not included in these diagnostics.
 
 A recovery timer checks once per minute for inventory classes that failed to load
 and retries only those classes. Successfully loaded classes, including empty ones,
-make no API requests from this timer. This preserves startup-only discovery by
-default; `inventoryRefresh` still controls deliberate full rediscovery. Failed
+make no API requests from this timer. Except for volume-status-driven updates,
+discovery remains startup-only by default; `inventoryRefresh` controls full rediscovery. Failed
 scheduled refreshes also recover this way. Loads are serialized and snapshots
 remain immutable. Synthetic tests verify selective recovery, restored filesystem
 NAS ownership, and no further requests after recovery.
@@ -189,7 +200,8 @@ collector health and Zabbix alerts. REST-only readiness reflects loaded inventor
 Array login, inventory loading and bulk activation run in the background, so a
 slow array no longer blocks HTTP startup. Metric endpoints remain accessible while
 initializing and report their existing failure health until data is available.
-Successful inventory discovery remains startup-only by default. Failed activation
+Successful inventory discovery remains startup-only by default except for volume
+inventory refreshed by successful status scrapes. Failed activation
 uses capped backoff; successful activation gets a one-minute warm-up before download.
 
 Use `log.path: "-"` (or empty) for stdout-only logging. Invalid startup configuration
@@ -254,8 +266,9 @@ missing measurements remain collection failures. A successfully loaded empty
 eligible inventory produces no performance samples without requiring a bulk module.
 No cross-array lookup or source_id remapping is performed.
 
-Inventory is startup-only by default. Restart after replication role changes or
-configure inventoryRefresh to refresh eligibility periodically. Previously discovered
+Volume inventory refreshes on successful volume-status scrapes. Volume-group
+inventory is startup-only by default: restart after group replication role changes
+or configure inventoryRefresh to refresh eligibility periodically. Previously discovered
 Zabbix destination items follow the template's lost-resource retention settings.
 
 The supplied API schema says is_replication_destination is false at both ends of
@@ -277,7 +290,9 @@ Incoming request IDs are not propagated to scheduled or shared backend operation
 
 The example configuration sets paths under `./logs/`. Existing `log.path` settings
 still work: if accessPath is omitted, `exporter.log` produces `exporter.access.log`.
-An empty path or `-` sends that stream to stdout; with both streams on stdout, use
+An empty `log.path` or `-` sends activity logs to stdout. An empty/omitted
+`accessPath` derives its destination from `log.path`; use `accessPath: "-"` to
+explicitly send access logs to stdout. With both streams on stdout, use
 the stream field to distinguish them. Existing combined log history stays in place;
 only new incoming requests move to the access file.
 

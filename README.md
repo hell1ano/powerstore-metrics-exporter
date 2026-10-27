@@ -41,8 +41,10 @@ PowerStore account with the necessary monitoring permissions; bulk enablement
 requires the Storage Operator role according to the project's deployment guidance.
 Keep production credentials, logs and bulk archives out of Git and image builds.
 
-For PowerStoreOS 5.0.0.2, set `apiVersion: v3` and **`bulkCollector: true`** for each
+For PowerStoreOS 5.0.0.2, retain `apiVersion: v3` and set **`bulkCollector: true`** for each
 array. The example's `bulkCollector: false` must be changed for this deployment.
+`apiVersion` is a required legacy configuration field; it does not select a REST
+API version or change requests. REST calls use `/api/rest/` for all configured values.
 The project requires bulk mode for PowerStoreOS 4.1 and later, and recommends it
 when per-object performance requests time out on larger systems.
 
@@ -53,7 +55,7 @@ when per-object performance requests time out on larger systems.
 | `exporter.bulkDir` | Writable bulk cache directory; pre-create it before startup. |
 | `exporter.bulkCron` | Bulk download schedule; example/default is every five minutes. |
 | `exporter.bulkMaxAge` | Maximum cache/source age; default `15m`. |
-| `exporter.inventoryRefresh` | `"0"` or omitted: inventory at startup only. Set e.g. `24h` for periodic refresh. Failed inventory classes retry every minute. |
+| `exporter.inventoryRefresh` | `"0"` or omitted: initial inventory plus failed-class retries every minute. Successful volume-status scrapes also refresh volume inventory. Set e.g. `24h` for periodic refresh of all classes. |
 | `storageList[].nasStatusCacheTTL` | NAS REST status cached per array, including failures; default `60s`. Refresh occurs on the next request after expiry. |
 | `storageList[].capacityInterval` | Non-bulk capacity interval; defaults to `Five_Mins`. Also supports `One_Hour` and `One_Day`. Bulk mode uses five-minute source samples. |
 | `exporter.reqLimit` | Concurrent-request limit for code paths using the request limiter; omitted/zero defaults to 200. |
@@ -69,7 +71,10 @@ persists, inspect activation/download errors rather than deleting files blindly.
 
 Faster monitoring polls do not increase the resolution of five-minute bulk samples.
 Inventory refresh and NAS status caching are independent of Zabbix discovery/polling.
-Restart or refresh inventory after object or replication-role changes.
+Restart or refresh inventory after object or replication-role changes for NAS,
+filesystems and volume groups. Volume eligibility and names refresh on successful
+`/volume` status scrapes; concurrent performance collection can use the previous
+snapshot once.
 
 ### Monitoring scope
 
@@ -122,7 +127,9 @@ those defaults. Archive cleanup/compression is asynchronous. See
 [rotation details and Podman host mounts](docs/collection-health.md#separate-request-logs-and-automatic-rotation).
 
 Old `log.path` settings still work: an omitted accessPath derives a sibling such as
-`powerstoreExporter.out.access.log`. Empty/`-` paths select stdout. File logging also
+`powerstoreExporter.out.access.log`. An empty `log.path` or `-` selects stdout;
+an empty/omitted `accessPath` derives its destination from `log.path`. Set
+`accessPath: "-"` explicitly for access logs on stdout. File logging also
 copies to stdout unless `log.stdout: false`; failures fall back to stdout. Container
 stdout retention is separate from exporter file rotation.
 

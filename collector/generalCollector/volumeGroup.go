@@ -17,6 +17,7 @@
 package generalCollector
 
 import (
+	"fmt"
 	"powerstore-metrics-exporter/collector/client"
 	"time"
 
@@ -60,25 +61,44 @@ func (c *volumeGroupCollector) Collect(ch chan<- prometheus.Metric) {
 		level.Warn(c.logger).Log("msg", "get volume group data error", "err", err)
 		return
 	}
-	volumeGroupData, err = selectMonitoredRows(volumeGroupData, "id", client.ModuleIDs(c.client.IP)["volumegroup"])
+	expected := client.ModuleIDs(c.client.IP)["volumegroup"]
+	volumeGroupData, err = selectMonitoredRows(volumeGroupData, "id", expected)
 	if err != nil {
 		reportCollectionError(ch, err)
 		level.Warn(c.logger).Log("msg", "source volume group inventory unavailable", "ip", c.client.IP, "err", err)
 		return
 	}
+	if err := checkHealthCoverage(volumeGroupData, expected, []string{"id", "name"}); err != nil {
+		reportCollectionError(ch, err)
+		level.Warn(c.logger).Log("msg", "incomplete volume group coverage", "ip", c.client.IP, "err", err)
+	}
 	for _, volumeGroup := range gjson.Parse(volumeGroupData).Array() {
+		if err := checkStringFields(volumeGroup, []string{"id", "name"}); err != nil {
+			continue // Coverage error was reported above; retain other groups.
+		}
 		name := volumeGroup.Get("name").String()
-		for _, applianceID := range volumeGroup.Get("appliance_ids").Array() {
+		appliances := volumeGroup.Get("appliance_ids")
+		if !appliances.IsArray() || len(appliances.Array()) == 0 {
+			reportCollectionError(ch, fmt.Errorf("volume group %s: missing or invalid appliance_ids", volumeGroup.Get("id").String()))
+			continue
+		}
+		for _, applianceID := range appliances.Array() {
+			if applianceID.Type != gjson.String || applianceID.String() == "" {
+				reportCollectionError(ch, fmt.Errorf("volume group %s: invalid appliance ID", volumeGroup.Get("id").String()))
+				continue
+			}
 			for _, metricName := range volumeGroupCollectorMetrics {
 				metricValue := volumeGroup.Get(metricName)
 				metricDesc := c.metrics[metricName]
-				if metricValue.Exists() && metricValue.Type != gjson.Null {
+				if metricValue.Type == gjson.Number {
 					ch <- prometheus.MustNewConstMetric(metricDesc, prometheus.GaugeValue, metricValue.Float(), name, applianceID.String())
+				} else {
+					reportCollectionError(ch, fmt.Errorf("volume group %s: missing or invalid %s", volumeGroup.Get("id").String(), metricName))
 				}
 			}
 		}
 	}
-	level.Info(c.logger).Log("msg", "Obtaining the volume group is successful", "time", time.Since(startTime))
+	level.Info(c.logger).Log("msg", "Volume group collection finished", "time", time.Since(startTime))
 }
 
 func (c *volumeGroupCollector) Describe(ch chan<- *prometheus.Desc) {

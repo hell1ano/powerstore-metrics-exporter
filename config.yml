@@ -10,7 +10,8 @@ exporter:
   bulkCron: "*/5 * * * *"
   # Reject bulk data when the download or oldest source sample exceeds this age.
   bulkMaxAge: 15m
-  # Inventory (including filesystem/NAS ownership) loads at startup only.
+  # Inventory loads at startup; failed classes retry every minute.
+  # Successful volume-status scrapes also refresh volume inventory.
   # Optionally set 24h or 1h to refresh automatically without restarting.
   inventoryRefresh: "0"
   https:
@@ -44,7 +45,7 @@ storageList:
     user: your-first-powerstore-username
     # password：Password of the user logged in with PowerStore Manager API
     password: your-first-powerstore-password
-    # apiVersion: It is recommended to use v1 for PowerStore OS versions below 3.6, and v3 for versions 3.6 and above
+    # Required legacy field; does not select an API version. All REST calls use /api/rest/.
     apiVersion: v3
     # apiLimit：The maximum number of components output per output by PowerStore Manger API
     apiLimit: 2000

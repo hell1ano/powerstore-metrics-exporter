@@ -40,10 +40,6 @@ var portCollectorMetrics = []string{
 	"current_speed",
 }
 
-var portStatusMetricMap = map[string]map[string]int{
-	"is_link_up": {"true": 1, "false": 0},
-}
-
 // port description
 var metricPortDescMap = map[string]string{
 	"is_link_up":    "Indicates whether the port's link is up:true is 1,false is 0",
@@ -68,14 +64,23 @@ func NewPortCollector(api *client.Client, logger log.Logger) *portCollector {
 func (c *portCollector) Collect(ch chan<- prometheus.Metric) {
 	level.Info(c.logger).Log("msg", "Start collecting port data")
 	startTime := time.Now()
+	inventory := client.ModuleIDs(c.client.IP)
 	for _, portType := range portTypes {
 		portTypeData, err := c.client.GetPort(portType)
 		if err != nil {
 			reportCollectionError(ch, err)
 			level.Warn(c.logger).Log("msg", "get "+portType+" data error", "err", err)
-			return
+			continue
+		}
+		module := map[string]string{"eth_port": "ethport", "fc_port": "fcport"}[portType]
+		if err := checkHealthCoverage(portTypeData, inventory[module], []string{"id", "name", "appliance_id"}); err != nil {
+			reportCollectionError(ch, err)
+			level.Warn(c.logger).Log("msg", "incomplete port coverage", "ip", c.client.IP, "type", portType, "err", err)
 		}
 		for _, data := range gjson.Parse(portTypeData).Array() {
+			if err := checkStringFields(data, []string{"id", "name", "appliance_id"}); err != nil {
+				continue // Retain other ports while reporting incomplete coverage.
+			}
 			name := data.Get("name").String()
 			id := data.Get("appliance_id").String()
 			for _, metricName := range portCollectorMetrics {
@@ -90,7 +95,7 @@ func (c *portCollector) Collect(ch chan<- prometheus.Metric) {
 			}
 		}
 	}
-	level.Info(c.logger).Log("msg", "Obtaining the port is successful", "time", time.Since(startTime))
+	level.Info(c.logger).Log("msg", "Port collection finished", "time", time.Since(startTime))
 }
 
 func (c *portCollector) Describe(ch chan<- *prometheus.Desc) {
@@ -100,11 +105,18 @@ func (c *portCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func getPortFloatDate(key string, value gjson.Result) (float64, error) {
-	if key != "current_speed" {
-		if v, ok := portStatusMetricMap[key]; ok {
-			return float64(v[value.String()]), nil
+	if key == "is_link_up" {
+		switch value.Type {
+		case gjson.True:
+			return 1, nil
+		case gjson.False:
+			return 0, nil
+		default:
+			return 0, fmt.Errorf("missing or invalid port link status")
 		}
-		return value.Float(), nil
+	}
+	if key != "current_speed" {
+		return 0, fmt.Errorf("unsupported port metric %q", key)
 	}
 	// Auto and null mean no numeric negotiated speed is available. Keep the
 	// established zero convention so link state remains independently usable.

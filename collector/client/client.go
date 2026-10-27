@@ -101,6 +101,8 @@ func NewConfiguredClient(config utils.Storage, logger log.Logger) (*Client, erro
 	}
 	var httpClient *http.Client
 	httpClient = &http.Client{
+		// Authentication redirects must reach requestPage's bounded login retry.
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
 		Transport: &http.Transport{
 			DialContext: (&net.Dialer{
 				Timeout:   30 * time.Second,
