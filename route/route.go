@@ -161,6 +161,7 @@ func Run(config *utils.Config, logger log.Logger) error {
 		// The collector that registers each component in the registry
 		ClusterRegistry.MustRegister(generalCollector.Monitored(storage.Ip, "cluster", false, generalCollector.NewClusterCollector(client, logger)))
 		ClusterRegistry.MustRegister(generalCollector.Monitored(storage.Ip, "metro", true, generalCollector.NewMetroCollector(client, logger)))
+		ClusterRegistry.MustRegister(generalCollector.Monitored(storage.Ip, "replication", true, generalCollector.NewReplicationCollector(client, logger)))
 		PortRegistry.MustRegister(generalCollector.Monitored(storage.Ip, "port", true, generalCollector.NewPortCollector(client, logger)))
 		HardwareRegistry.MustRegister(generalCollector.Monitored(storage.Ip, "hardware", false, generalCollector.NewHardwareCollector(client, logger)))
 		VolumeRegistry.MustRegister(generalCollector.Monitored(storage.Ip, "volume", true, generalCollector.NewVolumeCollector(client, logger)))

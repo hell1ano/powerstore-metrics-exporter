@@ -84,6 +84,7 @@ func (c *metricVolumeCollector) Collect(ch chan<- prometheus.Metric) {
 	startTime := time.Now()
 	if c.isEnableBulk {
 		volumeArray := client.ModuleIDs(c.client.IP)
+		status := &sampleCoverage{ch: ch, api: c.client, collector: "volume_performance", names: volumeArray["volume"]}
 		if volumeArray["volume"] == nil {
 			reportCollectionError(ch, fmt.Errorf("inventory unavailable"))
 			return
@@ -97,7 +98,7 @@ func (c *metricVolumeCollector) Collect(ch chan<- prometheus.Metric) {
 					"volume_id", id, "volume_name", volumeArray["volume"][id].String(), "err", err)
 			}
 		}
-		volumeData, err := readVolumePerformanceBulk(c.bulkClient, volumeArray["volume"], volumeArray["volume_appliance"], report)
+		volumeData, err := readVolumePerformanceBulk(c.bulkClient, volumeArray["volume"], volumeArray["volume_appliance"], report, status)
 		if err != nil {
 			report("", err)
 			return
@@ -124,6 +125,7 @@ func (c *metricVolumeCollector) Collect(ch chan<- prometheus.Metric) {
 	} else {
 		var wg sync.WaitGroup
 		volumeArray := client.ModuleIDs(c.client.IP)
+		status := &sampleCoverage{ch: ch, api: c.client, collector: "volume_performance", names: volumeArray["volume"]}
 		if volumeArray["volume"] == nil {
 			reportCollectionError(ch, fmt.Errorf("inventory unavailable"))
 			return
@@ -140,14 +142,17 @@ func (c *metricVolumeCollector) Collect(ch chan<- prometheus.Metric) {
 				}
 				volumeDataArray := gjson.Parse(metricVolData).Array()
 				if len(volumeDataArray) == 0 {
-					reportCollectionError(ch, fmt.Errorf("no samples returned for known object"))
-					level.Warn(c.logger).Log("msg", "get volume performance data is null")
+					if !status.missing(volumeId) {
+						reportCollectionError(ch, fmt.Errorf("no samples returned for known object"))
+						level.Warn(c.logger).Log("msg", "get volume performance data is null")
+					}
 					return
 				}
 				volumeData := volumeDataArray[len(volumeDataArray)-1]
 				if !requireMeasurements(ch, c.logger, c.client.IP, volumeId, volumeData, metricVolumeCollectorMetric) {
 					return
 				}
+				status.present(volumeId)
 				applianceID := volumeData.Get("appliance_id").String()
 				for _, metricName := range metricVolumeCollectorMetric {
 					metricValue := volumeData.Get(metricName)
@@ -164,6 +169,7 @@ func (c *metricVolumeCollector) Collect(ch chan<- prometheus.Metric) {
 }
 
 func (c *metricVolumeCollector) Describe(ch chan<- *prometheus.Desc) {
+	describeCoverage(ch, c.client.IP, "volume_performance")
 	for _, descMap := range c.metrics {
 		ch <- descMap
 	}

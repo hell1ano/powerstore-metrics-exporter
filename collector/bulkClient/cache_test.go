@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -59,6 +60,7 @@ func TestFailedRefreshPreservesGoodCache(t *testing.T) {
 		body []byte
 	}{
 		{"HTTP failure", 500, []byte("unavailable")},
+		{"partial HTTP archive", 206, valid},
 		{"not modified without a new archive", 304, nil},
 		{"not gzip", 200, []byte("not gzip")},
 		{"truncated", 200, valid[:len(valid)-12]},
@@ -111,6 +113,67 @@ func TestFailedRefreshPreservesGoodCache(t *testing.T) {
 			responseMu.Unlock()
 			if err := bc.DownloadBulkData(); err != nil || !bc.downloadSuccess {
 				t.Fatalf("did not recover: %v", err)
+			}
+		})
+	}
+}
+
+func TestBulkDownloadHasNoRESTCollectionRowLimit(t *testing.T) {
+	var csv strings.Builder
+	csv.WriteString("volume_id,appliance_id,timestamp,avg_read_iops\n")
+	stamp := time.Now().UTC().Format(time.RFC3339Nano)
+	for i := 0; i < 2205; i++ {
+		fmt.Fprintf(&csv, "v-%04d,A1,%s,42\n", i, stamp)
+	}
+	body := archive(t, csv.String())
+	calls := 0
+	bc := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if r.Method != "POST" || r.URL.Path != "/latest_five_min_metrics/download" || len(r.URL.Query()) != 0 {
+			t.Errorf("unexpected bulk request %s %s", r.Method, r.URL)
+		}
+		w.Write(body)
+	})
+	if err := bc.DownloadBulkData(); err != nil {
+		t.Fatal(err)
+	}
+	data, err := bc.ReadCsvData("PerformanceMetricsByVolume")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rows []json.RawMessage
+	if err = json.Unmarshal([]byte(data), &rows); err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 2205 || calls != 1 {
+		t.Fatalf("bulk truncated or extra calls: rows=%d calls=%d", len(rows), calls)
+	}
+}
+
+func TestBulkRejectsRangedArchiveEvenWithHTTP200(t *testing.T) {
+	body := archive(t, sample(time.Now()))
+	bc := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Range", "bytes 0-99/200")
+		w.Write(body)
+	})
+	if err := bc.DownloadBulkData(); err == nil || !bc.lastSuccess.IsZero() {
+		t.Fatal("ranged archive published")
+	}
+}
+
+func TestBulkEnableIsAnActionNotAPaginatedCollection(t *testing.T) {
+	for _, code := range []int{204, 206} {
+		t.Run(fmt.Sprint(code), func(t *testing.T) {
+			calls := 0
+			bc := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+				calls++
+				if r.Method != "POST" || r.URL.Path != "/latest_five_min_metrics/enable" || len(r.URL.Query()) != 0 {
+					t.Errorf("unexpected enable request %s %s", r.Method, r.URL)
+				}
+				w.WriteHeader(code)
+			})
+			if err := bc.BulkEnable(); (err == nil) != (code == 204) || calls != 1 {
+				t.Fatalf("calls=%d err=%v", calls, err)
 			}
 		})
 	}

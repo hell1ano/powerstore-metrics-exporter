@@ -44,16 +44,17 @@ func InitReqCounter(maxReq int) error {
 }
 
 type Storage struct {
-	NASStatusCacheTTL     string `yaml:"nasStatusCacheTTL"`
-	CapacityInterval      string `yaml:"capacityInterval"`
-	TLSCAFile             string `yaml:"tlsCAFile"`
-	TLSInsecureSkipVerify bool   `yaml:"tlsInsecureSkipVerify"`
-	Ip                    string `yaml:"ip"`
-	User                  string `yaml:"user"`
-	Password              string `yaml:"password"`
-	Version               string `yaml:"apiVersion"`
-	Limit                 int    `yaml:"apiLimit"`
-	Bulk                  bool   `yaml:"bulkCollector"`
+	ExpectedMissingMetrics map[string][]string `yaml:"expectedMissingMetrics"`
+	NASStatusCacheTTL      string              `yaml:"nasStatusCacheTTL"`
+	CapacityInterval       string              `yaml:"capacityInterval"`
+	TLSCAFile              string              `yaml:"tlsCAFile"`
+	TLSInsecureSkipVerify  bool                `yaml:"tlsInsecureSkipVerify"`
+	Ip                     string              `yaml:"ip"`
+	User                   string              `yaml:"user"`
+	Password               string              `yaml:"password"`
+	Version                string              `yaml:"apiVersion"`
+	Limit                  int                 `yaml:"apiLimit"`
+	Bulk                   bool                `yaml:"bulkCollector"`
 }
 
 type Exporter struct {

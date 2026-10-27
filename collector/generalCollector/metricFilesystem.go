@@ -95,6 +95,7 @@ func (c *metricFilesystemCollector) Collect(ch chan<- prometheus.Metric) {
 	level.Info(c.logger).Log("msg", "Start collecting filesystem performance data")
 	startTime := time.Now()
 	inventory := client.ModuleIDs(c.client.IP)
+	status := &sampleCoverage{ch: ch, api: c.client, collector: "filesystem_performance", names: inventory["filesystem"], owners: inventory["filesystem_nas"]}
 	var failed atomic.Bool
 	defer func() {
 		if !failed.Load() {
@@ -107,7 +108,7 @@ func (c *metricFilesystemCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 	if c.isEnableBulk {
 		filesystemArray := inventory
-		filesystemData, err := readFilesystemBulk(c.bulkClient, "PerformanceMetricsByFileSystem", filesystemArray, metricFilesystemCollectorMetric, report)
+		filesystemData, err := readFilesystemBulk(c.bulkClient, "PerformanceMetricsByFileSystem", filesystemArray, metricFilesystemCollectorMetric, report, status)
 		if err != nil {
 			report("", err)
 			return
@@ -158,13 +159,16 @@ func (c *metricFilesystemCollector) Collect(ch chan<- prometheus.Metric) {
 				}
 				filesystemArray := gjson.Parse(filesystemData).Array()
 				if len(filesystemArray) == 0 {
-					report(filesystemId, fmt.Errorf("no samples returned for known object"))
+					if !status.missing(filesystemId) {
+						report(filesystemId, fmt.Errorf("no samples returned for known object"))
+					}
 					return
 				}
 				if !requireMeasurements(ch, c.logger, c.client.IP, filesystemId, filesystemArray[len(filesystemArray)-1], metricFilesystemCollectorMetric) {
 					failed.Store(true)
 					return
 				}
+				status.present(filesystemId)
 				for _, metricName := range metricFilesystemCollectorMetric {
 					metricValue := filesystemArray[len(filesystemArray)-1].Get(metricName)
 					metricDesc := c.metrics["filesystem"+"_"+metricName]
@@ -180,6 +184,7 @@ func (c *metricFilesystemCollector) Collect(ch chan<- prometheus.Metric) {
 }
 
 func (c *metricFilesystemCollector) Describe(ch chan<- *prometheus.Desc) {
+	describeCoverage(ch, c.client.IP, "filesystem_performance")
 	for _, descMap := range c.metrics {
 		ch <- descMap
 	}

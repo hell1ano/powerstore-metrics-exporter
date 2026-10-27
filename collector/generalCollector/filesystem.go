@@ -66,6 +66,7 @@ func (c *fileSystemCollector) Collect(ch chan<- prometheus.Metric) {
 	level.Info(c.logger).Log("msg", "Start collecting filesystem data")
 	startTime := time.Now()
 	inventory := client.ModuleIDs(c.client.IP)
+	status := &sampleCoverage{ch: ch, api: c.client, collector: "filesystem_capacity", names: inventory["filesystem"], owners: inventory["filesystem_nas"]}
 	var failed atomic.Bool
 	defer func() {
 		if !failed.Load() {
@@ -78,7 +79,7 @@ func (c *fileSystemCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 	if c.isEnableBulk {
 		filesystemArray := inventory
-		filesystemData, err := readFilesystemBulk(c.bulkClient, "SpaceMetricsByFilesystem", filesystemArray, metricFileSystemCollector, report)
+		filesystemData, err := readFilesystemBulk(c.bulkClient, "SpaceMetricsByFilesystem", filesystemArray, metricFileSystemCollector, report, status)
 		if err != nil {
 			report("", err)
 			return
@@ -125,13 +126,16 @@ func (c *fileSystemCollector) Collect(ch chan<- prometheus.Metric) {
 			}
 			filesystemArray := gjson.Parse(filesystemData).Array()
 			if len(filesystemArray) == 0 {
-				report(filesystemID, fmt.Errorf("no samples returned for known object"))
+				if !status.missing(filesystemID) {
+					report(filesystemID, fmt.Errorf("no samples returned for known object"))
+				}
 				continue
 			}
 			if !requireMeasurements(ch, c.logger, c.client.IP, filesystemID, filesystemArray[len(filesystemArray)-1], metricFileSystemCollector) {
 				failed.Store(true)
 				continue
 			}
+			status.present(filesystemID)
 			for _, metricName := range metricFileSystemCollector {
 				metricValue := filesystemArray[len(filesystemArray)-1].Get(metricName)
 				metricDesc := c.metrics["filesystem_"+metricName]
@@ -145,6 +149,7 @@ func (c *fileSystemCollector) Collect(ch chan<- prometheus.Metric) {
 }
 
 func (c *fileSystemCollector) Describe(ch chan<- *prometheus.Desc) {
+	describeCoverage(ch, c.client.IP, "filesystem_capacity")
 	for _, descMap := range c.metrics {
 		ch <- descMap
 	}

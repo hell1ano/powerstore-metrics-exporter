@@ -10,8 +10,10 @@ import (
 
 // Keep source selection and archive integrity/freshness checks. Only missing or
 // unusable selected objects become partial results. Missing rows are zero-filled
-// by monitoring policy, with failed health to distinguish them from measured zeros.
-func readVolumePerformanceBulk(bc *bulkClient.BulkClient, expected map[string]gjson.Result, appliances map[string]gjson.Result, report func(string, error)) (string, error) {
+// by monitoring policy. Unexpected missing rows fail health; explicitly allowed
+// missing rows retain healthy collection. Coverage gauges distinguish both from measured zeros.
+func readVolumePerformanceBulk(bc *bulkClient.BulkClient, expected map[string]gjson.Result, appliances map[string]gjson.Result, report func(string, error), coverage ...*sampleCoverage) (string, error) {
+	status := firstCoverage(coverage)
 	if expected == nil {
 		return "", fmt.Errorf("inventory unavailable")
 	}
@@ -54,6 +56,7 @@ func readVolumePerformanceBulk(bc *bulkClient.BulkClient, expected map[string]gj
 			continue
 		}
 		rows = append(rows, json.RawMessage(row.Raw))
+		status.present(id)
 	}
 	missing := []string{}
 	for id := range expected {
@@ -63,6 +66,7 @@ func readVolumePerformanceBulk(bc *bulkClient.BulkClient, expected map[string]gj
 	}
 	sort.Strings(missing)
 	for _, id := range missing {
+		allowed := status.missing(id)
 		appliance := appliances[id].String()
 		if appliance == "" || expected[id].String() == "" {
 			report(id, fmt.Errorf("known volume is missing measurements; cannot zero-fill without inventory name and appliance ID"))
@@ -77,7 +81,9 @@ func readVolumePerformanceBulk(bc *bulkClient.BulkClient, expected map[string]gj
 			return "", err
 		}
 		rows = append(rows, encoded)
-		report(id, fmt.Errorf("volume performance row absent from valid bulk data; displaying zero by monitoring policy"))
+		if !allowed {
+			report(id, fmt.Errorf("volume performance row absent from valid bulk data; displaying zero by monitoring policy"))
+		}
 	}
 	result, err := json.Marshal(rows)
 	return string(result), err

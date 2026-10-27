@@ -53,6 +53,10 @@ storageList:
     bulkCollector: false
     # Cache NAS REST status (including failures); refresh on the next poll after expiry.
     nasStatusCacheTTL: 60s
+    # Optional exact object UUIDs whose absent samples are expected (e.g. retired test objects).
+    # Allowed keys: filesystem_capacity, filesystem_performance, volume_performance.
+    # Request errors, invalid data and stale/missing bulk modules still fail collection.
+    expectedMissingMetrics: {}
     # Verify the array certificate and hostname for both REST and bulk requests.
     tlsInsecureSkipVerify: false
     # Optional PEM CA bundle for an internal certificate authority.

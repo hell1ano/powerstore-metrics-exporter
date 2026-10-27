@@ -88,7 +88,18 @@ func (c *Client) GetVolumeGroup() (string, error) {
 }
 
 func (c *Client) GetMetro() (string, error) {
-	return c.getData("replication_session?type=eq.Metro_Active_Active&select=*", "GET", "")
+	data, err := c.GetReplicationSessions()
+	if err != nil {
+		return "", err
+	}
+	rows := []json.RawMessage{}
+	for _, row := range gjson.Parse(data).Array() {
+		if row.Get("type").String() == "Metro_Active_Active" {
+			rows = append(rows, json.RawMessage(row.Raw))
+		}
+	}
+	result, err := json.Marshal(rows)
+	return string(result), err
 }
 
 func (c *Client) GetWitness() (string, error) {

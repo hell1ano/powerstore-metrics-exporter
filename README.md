@@ -3,6 +3,12 @@
 Collect metrics from multiple PowerStore arrays through their REST and bulk APIs.
 Prometheus and Zabbix can scrape the exporter directly; Grafana is optional.
 
+Replication sessions (asynchronous, synchronous and Metro, all resource types and
+roles) are exposed on the existing cluster endpoint. Session and legacy Metro
+collectors share one cached REST query, including embedded RPO rules; bulk remains
+the performance source. See [replication coverage and code review](docs/replication-review.md)
+for metrics, remaining gaps, request costs and rollout checks.
+
 This fork includes a dedicated **Zabbix 7.0 template**, collection-health and
 freshness checks, filesystem NAS ownership, source-volume filtering, NAS request
 caching, and separate rotating request/activity logs. Use this fork's `main` branch
@@ -51,6 +57,7 @@ when per-object performance requests time out on larger systems.
 | `storageList[].nasStatusCacheTTL` | NAS REST status cached per array, including failures; default `60s`. Refresh occurs on the next request after expiry. |
 | `storageList[].capacityInterval` | Non-bulk capacity interval; defaults to `Five_Mins`. Also supports `One_Hour` and `One_Day`. Bulk mode uses five-minute source samples. |
 | `exporter.reqLimit` | Concurrent-request limit for code paths using the request limiter; omitted/zero defaults to 200. |
+| `storageList[].apiLimit` | REST collection page size, not a total object limit; defaults to 2000 and is capped at 2000. All pages are fetched using Content-Range. Does not limit bulk CSV rows. |
 
 Bulk mode enables bulk metrics on the array and downloads complete archives.
 Downloads are validated in a temporary file before replacing the existing archive.
@@ -247,3 +254,38 @@ The window and minimum sample count are configurable through
 and `288` for five-minute polling). Import the updated templates; see
 [configuration and data-coverage limits](templates/zabbix/README.md#idle-volumes-and-filesystems).
 Missing filesystem samples do not count as zero; volume fallback zeros do.
+# Expected missing object samples
+
+Measured numeric zero is valid data. An absent row is not a measured zero.
+For known unused objects, configure exact object UUIDs under the relevant
+`storageList` entry (defaults to no exceptions):
+
+```yaml
+expectedMissingMetrics:
+  filesystem_capacity: ["unused-filesystem-uuid"]
+  filesystem_performance: ["unused-filesystem-uuid"]
+  volume_performance: ["unused-volume-uuid"]
+```
+
+Exceptions only permit absent rows in valid fresh bulk modules or successful empty
+direct metric responses. They do not skip collection, change source/destination
+selection, or hide API failures, stale/missing bulk modules, invalid samples or
+inventory errors. No additional API requests are introduced. Remove an exception
+when an object returns to service; returning samples are collected even while listed.
+Restart the exporter after changing configuration.
+
+The three collectors emit `powerstore_object_sample_available` and
+`powerstore_object_missing_expected`, labelled by `IP`, `collector`, `object_id`,
+`name` and `nas_server_id` (empty for volumes):
+
+| Result | Sample available | Missing expected | Collection health |
+| --- | --- | --- | --- |
+| Measured value, including zero | 1 | 0 | Successful unless another error occurs |
+| Absent sample, explicitly configured | 0 | 1 | Successful unless another error occurs |
+| Absent sample, not configured | 0 | 0 | Failed |
+
+These diagnostics do not count toward `powerstore_collector_samples`. On request or
+archive failure, coverage gauges may be absent; use `powerstore_collector_success`
+to detect those failures. Existing volume zero-fill is retained for missing rows,
+but the availability gauge makes those synthetic zeros identifiable. Filesystem
+measurements are not fabricated. Filesystem coverage also follows NAS host filtering.

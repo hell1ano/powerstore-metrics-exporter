@@ -33,9 +33,9 @@ var statusMetroMetricsMap = map[string]map[string]int{
 }
 
 var metricMetroDescMap = map[string]string{
-	"state":         "Witness state of replication;Initializing - 0 Disengaged - 1 Engaged - 2 Remote_Witness_Invalid_Or_Unavailable - 3 Failed_To_Initialize - 4 Unconfigure_In_Progress - 5",
-	"witness_state": "Possible witness states;OK - 0 Partially_Connected - 1 Disconnected - 2 Deleting - 3 Initializing - 4",
-	"conn_state":    "Possible witness connection states;OK - 0 Disconnected - 1 Initializing - 2",
+	"state":         "Witness state of replication;Unknown - -1 Initializing - 0 Disengaged - 1 Engaged - 2 Remote_Witness_Invalid_Or_Unavailable - 3 Failed_To_Initialize - 4 Unconfigure_In_Progress - 5",
+	"witness_state": "Possible witness states;Unknown - -1 OK - 0 Partially_Connected - 1 Disconnected - 2 Deleting - 3 Initializing - 4",
+	"conn_state":    "Possible witness connection states;Unknown - -1 OK - 0 Disconnected - 1 Initializing - 2",
 }
 
 type metroCollector struct {
@@ -88,7 +88,7 @@ func (c *metroCollector) Collect(ch chan<- prometheus.Metric) {
 			nodeID := connData.Get("node_id").String()
 			nodeStatus := connData.Get("state")
 			metricDesc := c.metrics["metro_witness_conn_status"]
-			if witnessState.Exists() && witnessState.Type != gjson.Null {
+			if nodeStatus.Exists() && nodeStatus.Type != gjson.Null {
 				ch <- prometheus.MustNewConstMetric(metricDesc, prometheus.GaugeValue, getMetroFloatData("conn_state", nodeStatus), witnessName, nodeID)
 			}
 		}
@@ -142,7 +142,7 @@ func getMetroFloatData(key string, value gjson.Result) float64 {
 		if res, ok2 := v[value.String()]; ok2 {
 			return float64(res)
 		} else {
-			return float64(v["other"])
+			return -1
 		}
 	} else {
 		return value.Float()

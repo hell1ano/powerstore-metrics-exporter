@@ -26,6 +26,7 @@ import (
 	"net/http"
 	"net/url"
 	"powerstore-metrics-exporter/utils"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -36,21 +37,23 @@ import (
 )
 
 type Client struct {
-	nasStatusTTL     time.Duration
-	nasStatus        responseCache
-	inventoryLoadMu  sync.Mutex
-	capacityInterval string
-	authMu           sync.RWMutex
-	IP               string
-	username         string
-	password         string
-	version          string
-	limit            int
-	baseUrl          string
-	http             *http.Client
-	token            string
-	cookie           string
-	logger           log.Logger
+	expectedMissingMetrics map[string]map[string]bool
+	replicationStatus      responseCache
+	nasStatusTTL           time.Duration
+	nasStatus              responseCache
+	inventoryLoadMu        sync.Mutex
+	capacityInterval       string
+	authMu                 sync.RWMutex
+	IP                     string
+	username               string
+	password               string
+	version                string
+	limit                  int
+	baseUrl                string
+	http                   *http.Client
+	token                  string
+	cookie                 string
+	logger                 log.Logger
 }
 
 func NewClient(config utils.Storage, logger log.Logger) (*Client, error) {
@@ -63,6 +66,10 @@ func NewClient(config utils.Storage, logger log.Logger) (*Client, error) {
 
 // NewConfiguredClient validates local settings without making network requests.
 func NewConfiguredClient(config utils.Storage, logger log.Logger) (*Client, error) {
+	expectedMissing, err := parseExpectedMissing(config.ExpectedMissingMetrics)
+	if err != nil {
+		return nil, err
+	}
 	var limit int
 	if config.Ip == "" || config.User == "" || config.Password == "" || config.Version == "" {
 		return nil, errors.New("please check config file ,Some parameters are null")
@@ -109,16 +116,17 @@ func NewConfiguredClient(config utils.Storage, logger log.Logger) (*Client, erro
 	}
 	httpClient.Transport = utils.LogAPITransport(httpClient.Transport, logger, config.Ip, "rest")
 	client := &Client{
-		IP:               config.Ip,
-		nasStatusTTL:     nasTTL,
-		capacityInterval: interval,
-		username:         config.User,
-		password:         config.Password,
-		version:          config.Version,
-		limit:            limit,
-		baseUrl:          baseUrl,
-		http:             httpClient,
-		logger:           logger,
+		expectedMissingMetrics: expectedMissing,
+		IP:                     config.Ip,
+		nasStatusTTL:           nasTTL,
+		capacityInterval:       interval,
+		username:               config.User,
+		password:               config.Password,
+		version:                config.Version,
+		limit:                  limit,
+		baseUrl:                baseUrl,
+		http:                   httpClient,
+		logger:                 logger,
 	}
 	return client, nil
 }
@@ -157,6 +165,8 @@ func (c *Client) InitLogin() error {
 	}
 }
 
+var collectionRange = regexp.MustCompile(`^(?:items )?([0-9]+)-([0-9]+)/([0-9]+)$`)
+
 // getResource follows Content-Range instead of assuming a configured page size
 // was honored by the array. A failed page invalidates the entire collection.
 func (c *Client) getResource(method, uri, body string) (string, error) {
@@ -178,6 +188,7 @@ func (c *Client) getResource(method, uri, body string) (string, error) {
 	offset := 0
 	expectedTotal := -1
 	var all []json.RawMessage
+	seen := map[string]bool{}
 	for page := 0; page < 10000; page++ {
 		if method == http.MethodGet {
 			query.Set("offset", strconv.Itoa(offset))
@@ -197,15 +208,35 @@ func (c *Client) getResource(method, uri, body string) (string, error) {
 		if err = json.Unmarshal([]byte(data), &rows); err != nil || !strings.HasPrefix(strings.TrimSpace(data), "[") {
 			return "", fmt.Errorf("invalid paginated collection")
 		}
+		// Offsets alone do not detect overlapping pages when a collection changes
+		// during the read. Reject repeated/missing IDs rather than publish a subset
+		// that happens to have the expected row count.
+		for _, row := range rows {
+			var identity struct {
+				ID string `json:"id"`
+			}
+			if err := json.Unmarshal(row, &identity); err != nil || identity.ID == "" {
+				return "", fmt.Errorf("paginated collection contains an invalid or missing ID")
+			}
+			if seen[identity.ID] {
+				return "", fmt.Errorf("duplicate ID in paginated collection; retry collection")
+			}
+			seen[identity.ID] = true
+		}
 		if status == http.StatusOK && contentRange == "" && expectedTotal >= 0 && len(rows) == expectedTotal-offset {
 			all = append(all, rows...)
 			result, err := json.Marshal(all)
 			return string(result), err
 		}
-		var start, end, total int
 		// PowerStore documents Content-Range as 0-99/1000 (without a unit).
-		n, err := fmt.Sscanf(strings.TrimPrefix(contentRange, "items "), "%d-%d/%d", &start, &end, &total)
-		if err != nil || n != 3 || start != offset || end < start || end >= total || len(rows) != end-start+1 {
+		parts := collectionRange.FindStringSubmatch(strings.TrimSpace(contentRange))
+		if parts == nil {
+			return "", fmt.Errorf("invalid pagination range")
+		}
+		start, startErr := strconv.Atoi(parts[1])
+		end, endErr := strconv.Atoi(parts[2])
+		total, totalErr := strconv.Atoi(parts[3])
+		if startErr != nil || endErr != nil || totalErr != nil || start != offset || end < start || end >= total || len(rows) != end-start+1 {
 			return "", fmt.Errorf("invalid pagination range")
 		}
 		if expectedTotal >= 0 && total != expectedTotal {

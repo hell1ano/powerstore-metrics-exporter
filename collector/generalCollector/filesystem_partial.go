@@ -18,7 +18,8 @@ func filesystemDestination(inventory map[string]map[string]gjson.Result, id stri
 
 // A bad object must not hide usable samples from other filesystems. Archive
 // integrity and freshness remain enforced before any rows reach this function.
-func readFilesystemBulk(bc *bulkClient.BulkClient, module string, inventory map[string]map[string]gjson.Result, fields []string, report func(string, error)) (string, error) {
+func readFilesystemBulk(bc *bulkClient.BulkClient, module string, inventory map[string]map[string]gjson.Result, fields []string, report func(string, error), coverage ...*sampleCoverage) (string, error) {
+	status := firstCoverage(coverage)
 	data, err := bc.ReadCsvData(module)
 	if err != nil {
 		return "", err
@@ -54,9 +55,10 @@ func readFilesystemBulk(bc *bulkClient.BulkClient, module string, inventory map[
 			continue
 		}
 		rows = append(rows, json.RawMessage(row.Raw))
+		status.present(id)
 	}
 	for id := range inventory["filesystem"] {
-		if !seen[id] && !filesystemDestination(inventory, id) {
+		if !seen[id] && !filesystemDestination(inventory, id) && !status.missing(id) {
 			report(id, fmt.Errorf("known filesystem is missing measurements in %s", module))
 		}
 	}

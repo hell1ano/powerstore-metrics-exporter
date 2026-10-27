@@ -74,7 +74,9 @@ func (c *monitoredCollector) Collect(ch chan<- prometheus.Metric) {
 		success, valid = 0, nil
 	}
 	for _, metric := range valid {
-		samples++
+		if _, diagnostic := metric.(collectionDiagnostic); !diagnostic {
+			samples++
+		}
 		ch <- metric
 	}
 	if samples == 0 && !c.allowEmpty {

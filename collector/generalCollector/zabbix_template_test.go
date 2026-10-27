@@ -23,6 +23,7 @@ func TestZabbix7MetricContract(t *testing.T) {
 	bc := &bulkClient.BulkClient{IP: api.IP}
 	logger := log.NewNopLogger()
 	collectors := []prometheus.Collector{
+		NewReplicationCollector(api, logger),
 		NewClusterCollector(api, logger), NewMetroCollector(api, logger), NewPortCollector(api, logger),
 		NewHardwareCollector(api, logger), NewVolumeCollector(api, logger), NewApplianceCollector(api, logger),
 		NewNasCollector(api, logger), NewVolumeGroupCollector(api, logger), NewCapacityCollector(api, logger),

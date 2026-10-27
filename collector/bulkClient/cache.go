@@ -48,6 +48,9 @@ func (bc *BulkClient) DownloadBulkData() (err error) {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("download bulk metrics: HTTP %d", resp.StatusCode)
 	}
+	if resp.Header.Get("Content-Range") != "" {
+		return fmt.Errorf("download bulk metrics: unexpected ranged archive response")
+	}
 	file, err := os.CreateTemp(bc.outputDir, ".pst-bulk-*.tmp")
 	if err != nil {
 		return err

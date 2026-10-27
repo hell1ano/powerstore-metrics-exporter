@@ -17,6 +17,7 @@
 package generalCollector
 
 import (
+	"fmt"
 	"powerstore-metrics-exporter/collector/client"
 	"time"
 
@@ -66,10 +67,21 @@ func (c *volumeCollector) Collect(ch chan<- prometheus.Metric) {
 		level.Warn(c.logger).Log("msg", "get volume data error", "err", err)
 		return
 	}
+	// Reuse the source-filtered status response; no extra inventory request.
+	if err := c.client.UpdateVolumeInventory(volumeData); err != nil {
+		reportCollectionError(ch, err)
+		level.Warn(c.logger).Log("msg", "invalid volume status inventory", "ip", c.client.IP, "err", err)
+		return
+	}
 	for _, volume := range gjson.Parse(volumeData).Array() {
 		name := volume.Get("name").String()
 		id := volume.Get("appliance_id").String()
 		for _, metricName := range volumeCollectorMetrics {
+			v := volume.Get(metricName)
+			if (metricName == "state" && (v.Type != gjson.String || v.String() == "")) || (metricName != "state" && v.Type != gjson.Number) {
+				reportCollectionError(ch, fmt.Errorf("volume %s: missing or invalid %s", volume.Get("id").String(), metricName))
+				continue
+			}
 			metricValue := getVolumeFloatDate(metricName, volume.Get(metricName))
 			metricDesc := c.metrics[metricName]
 			ch <- prometheus.MustNewConstMetric(metricDesc, prometheus.GaugeValue, metricValue, name, id)

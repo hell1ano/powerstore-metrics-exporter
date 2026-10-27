@@ -56,3 +56,25 @@ func TestVolumeInventoryApplianceIdentity(t *testing.T) {
 		t.Fatal("missing appliance inventory")
 	}
 }
+
+func TestVolumeStatusRefreshesSourceSelectionWithoutChangingOldSnapshot(t *testing.T) {
+	c := &Client{IP: "role-change-test"}
+	defer delete(PowerstoreModuleID, c.IP)
+	if err := c.UpdateVolumeInventory(`[{"id":"old-source","name":"old","appliance_id":"A1"}]`); err != nil {
+		t.Fatal(err)
+	}
+	old := ModuleIDs(c.IP)
+	if err := c.UpdateVolumeInventory(`[{"id":"new-source","name":"new","appliance_id":"A2"}]`); err != nil {
+		t.Fatal(err)
+	}
+	current := ModuleIDs(c.IP)
+	if len(current["volume"]) != 1 || current["volume"]["new-source"].String() != "new" || old["volume"]["old-source"].String() != "old" {
+		t.Fatal("source selection stale or old snapshot mutated")
+	}
+	if err := c.UpdateVolumeInventory(`[{"id":"invalid"}]`); err == nil {
+		t.Fatal("invalid inventory accepted")
+	}
+	if ModuleIDs(c.IP)["volume"]["new-source"].String() != "new" {
+		t.Fatal("failed update erased inventory")
+	}
+}

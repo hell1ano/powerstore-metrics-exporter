@@ -1,6 +1,157 @@
 zabbix_export:
   templates:
     - discovery_rules:
+        - uuid: "0e0a835e2a664590b880f8a080c58ca1"
+          name: "Replication Session Discovery"
+          type: "DEPENDENT"
+          key: "powerstore.replication.discovery"
+          delay: "0"
+          master_item:
+            key: "powerstore.cluster"
+          preprocessing:
+            - type: "JAVASCRIPT"
+              parameters:
+                - 'var lines = value.split("\n"); for (var i = 0; i < lines.length; i++) { if (/^powerstore_collector_success\{/.test(lines[i]) && /collector="replication"/.test(lines[i]) && /\}\s+1\s*$/.test(lines[i])) return value; } throw "Replication collection failed; preserve existing discovery";'
+            - type: "PROMETHEUS_TO_JSON"
+              parameters:
+                - 'powerstore_replication_session_info{IP="{$PST_IP}"}'
+          lld_macro_paths:
+            - lld_macro: "{#SESSION_ID}"
+              path: '$.labels["session_id"]'
+            - lld_macro: "{#RESOURCE_TYPE}"
+              path: '$.labels["resource_type"]'
+            - lld_macro: "{#LOCAL_RESOURCE_ID}"
+              path: '$.labels["local_resource_id"]'
+          item_prototypes:
+            - uuid: "dabf310c18e840c9bd41c06cc4b3adce"
+              name: "Replication {#RESOURCE_TYPE} [{#SESSION_ID}]: State"
+              type: "DEPENDENT"
+              key: "powerstore.replication.state[{#SESSION_ID}]"
+              delay: "0"
+              value_type: "CHAR"
+              trends: "0"
+              master_item:
+                key: "powerstore.cluster"
+              preprocessing:
+                - type: "PROMETHEUS_PATTERN"
+                  parameters:
+                    - 'powerstore_replication_session_state{IP="{$PST_IP}",session_id="{#SESSION_ID}"}'
+                    - "label"
+                    - "state"
+              trigger_prototypes:
+                - uuid: "3faf80678d884db88ffb983b10c0fcdf"
+                  name: "Replication [{#SESSION_ID}]: State requires attention"
+                  expression: 'find(/Dell PowerStore by exporter HTTP/powerstore.replication.state[{#SESSION_ID}],,"regexp","^(OK|Synchronizing)$")=0'
+                  priority: "WARNING"
+                - uuid: "37597c3420cf4d738ce5912a3744fb27"
+                  name: "Replication [{#SESSION_ID}]: Session status is missing"
+                  expression: 'nodata(/Dell PowerStore by exporter HTTP/powerstore.replication.state[{#SESSION_ID}],{$POWERSTORE.NODATA})=1'
+                  priority: "AVERAGE"
+            - uuid: "f2587adc63694ca99bca7d67874cdc10"
+              name: "Replication [{#SESSION_ID}]: Local role"
+              type: "DEPENDENT"
+              key: "powerstore.replication.role[{#SESSION_ID}]"
+              delay: "0"
+              value_type: "CHAR"
+              trends: "0"
+              master_item:
+                key: "powerstore.cluster"
+              preprocessing:
+                - type: "PROMETHEUS_PATTERN"
+                  parameters:
+                    - 'powerstore_replication_session_info{IP="{$PST_IP}",session_id="{#SESSION_ID}"}'
+                    - "label"
+                    - "role"
+            - uuid: "e710bb91dcf940ed90cb8bc977876c49"
+              name: "Replication [{#SESSION_ID}]: Type"
+              type: "DEPENDENT"
+              key: "powerstore.replication.type[{#SESSION_ID}]"
+              delay: "0"
+              value_type: "CHAR"
+              trends: "0"
+              master_item:
+                key: "powerstore.cluster"
+              preprocessing:
+                - type: "PROMETHEUS_PATTERN"
+                  parameters:
+                    - 'powerstore_replication_session_info{IP="{$PST_IP}",session_id="{#SESSION_ID}"}'
+                    - "label"
+                    - "type"
+            - uuid: "ea33decfbbe34fc6a96e14478bb609d1"
+              name: "Replication [{#SESSION_ID}]: Data connection state"
+              type: "DEPENDENT"
+              key: "powerstore.replication.connection[{#SESSION_ID}]"
+              delay: "0"
+              value_type: "CHAR"
+              trends: "0"
+              master_item:
+                key: "powerstore.cluster"
+              preprocessing:
+                - type: "PROMETHEUS_PATTERN"
+                  parameters:
+                    - 'powerstore_replication_session_data_connection_state{IP="{$PST_IP}",session_id="{#SESSION_ID}"}'
+                    - "label"
+                    - "data_connection_state"
+                  error_handler: "CUSTOM_VALUE"
+                  error_handler_params: "Unavailable"
+              trigger_prototypes:
+                - uuid: "2888e97ce69a4682a977a642f2d363e1"
+                  name: "Replication [{#SESSION_ID}]: Data connection requires attention"
+                  expression: 'find(/Dell PowerStore by exporter HTTP/powerstore.replication.connection[{#SESSION_ID}],,"regexp","^(OK|Unavailable)$")=0'
+                  priority: "WARNING"
+            - uuid: "e18ab0dba2aa45f3b0503fbf79a967de"
+              name: "Replication [{#SESSION_ID}]: Data transfer state"
+              type: "DEPENDENT"
+              key: "powerstore.replication.transfer[{#SESSION_ID}]"
+              delay: "0"
+              value_type: "CHAR"
+              trends: "0"
+              master_item:
+                key: "powerstore.cluster"
+              preprocessing:
+                - type: "PROMETHEUS_PATTERN"
+                  parameters:
+                    - 'powerstore_replication_session_data_transfer_state{IP="{$PST_IP}",session_id="{#SESSION_ID}"}'
+                    - "label"
+                    - "data_transfer_state"
+                  error_handler: "CUSTOM_VALUE"
+                  error_handler_params: "Unavailable"
+              trigger_prototypes:
+                - uuid: "9e406bfffd4d4e5997eca4c1a1439aca"
+                  name: "Replication [{#SESSION_ID}]: Data transfer faulted or paused"
+                  expression: 'find(/Dell PowerStore by exporter HTTP/powerstore.replication.transfer[{#SESSION_ID}],,"regexp","^(Faulted|Faulted_From_In_Sync|Paused)$")=1'
+                  priority: "AVERAGE"
+            - uuid: "538877da166c484a86f862bb68317790"
+              name: "Replication [{#SESSION_ID}]: Configured RPO"
+              description: "Configured target, not actual destination lag. Interpret only when RPO available is 1. Unsupported values are not zero-filled."
+              type: "DEPENDENT"
+              key: "powerstore.replication.rpo[{#SESSION_ID}]"
+              delay: "0"
+              value_type: "FLOAT"
+              units: "s"
+              master_item:
+                key: "powerstore.cluster"
+              preprocessing:
+                - type: "PROMETHEUS_PATTERN"
+                  parameters:
+                    - 'powerstore_replication_session_rpo_seconds{IP="{$PST_IP}",session_id="{#SESSION_ID}"}'
+                    - "value"
+                    - ""
+                  error_handler: "DISCARD_VALUE"
+            - uuid: "4e699282e3b14c6e99280c06af1d2720"
+              name: "Replication [{#SESSION_ID}]: RPO available"
+              type: "DEPENDENT"
+              key: "powerstore.replication.rpo.available[{#SESSION_ID}]"
+              delay: "0"
+              value_type: "UNSIGNED"
+              master_item:
+                key: "powerstore.cluster"
+              preprocessing:
+                - type: "PROMETHEUS_PATTERN"
+                  parameters:
+                    - 'powerstore_replication_session_rpo_available{IP="{$PST_IP}",session_id="{#SESSION_ID}"}'
+                    - "value"
+                    - ""
         - delay: "0"
           item_prototypes:
             - delay: "0"
@@ -2883,6 +3034,39 @@ zabbix_export:
       groups:
         - name: "Templates"
       items:
+        - uuid: "9ed82b38c5c249ab9b9b3236c9107a64"
+          name: "Collector replication: Success"
+          type: "DEPENDENT"
+          key: "powerstore.collector.success[replication]"
+          delay: "0"
+          value_type: "UNSIGNED"
+          master_item:
+            key: "powerstore.cluster"
+          preprocessing:
+            - type: "PROMETHEUS_PATTERN"
+              parameters:
+                - 'powerstore_collector_success{IP="{$PST_IP}",collector="replication"}'
+                - "value"
+                - ""
+          triggers:
+            - uuid: "ba70c99116ef45e5b15cd216a18b6c7a"
+              name: "PowerStore: replication collection failed or health is missing"
+              expression: 'last(/Dell PowerStore by exporter HTTP/powerstore.collector.success[replication])=0 or nodata(/Dell PowerStore by exporter HTTP/powerstore.collector.success[replication],{$POWERSTORE.NODATA})=1'
+              priority: "AVERAGE"
+        - uuid: "d2d9c1bf4d8646a4b3b4332e6b0d174b"
+          name: "Replication session count"
+          type: "DEPENDENT"
+          key: "powerstore.replication.count"
+          delay: "0"
+          value_type: "UNSIGNED"
+          master_item:
+            key: "powerstore.cluster"
+          preprocessing:
+            - type: "PROMETHEUS_PATTERN"
+              parameters:
+                - 'powerstore_replication_session_count{IP="{$PST_IP}"}'
+                - "value"
+                - ""
         - delay: "5m"
           key: "powerstore.appliance"
           name: "Powerstore Appliance"
