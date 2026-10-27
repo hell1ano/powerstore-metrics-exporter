@@ -289,3 +289,12 @@ archive failure, coverage gauges may be absent; use `powerstore_collector_succes
 to detect those failures. Existing volume zero-fill is retained for missing rows,
 but the availability gauge makes those synthetic zeros identifiable. Filesystem
 measurements are not fabricated. Filesystem coverage also follows NAS host filtering.
+
+The Zabbix 7 array template discovers both coverage items for all three collectors;
+the NAS-host template includes the two filesystem collectors. Discovery uses coverage
+metrics so objects with absent measurements are included. Items use existing master
+feeds and stable object IDs, without additional polling. Missing diagnostics during
+request/archive failures are discarded rather than converted to zero; the last item
+value remains visible, so always check collector health and the item's timestamp.
+Existing collector-health triggers report failures; expected absence creates no new
+per-object alert. Update the relevant Zabbix 7 template after upgrading the exporter.

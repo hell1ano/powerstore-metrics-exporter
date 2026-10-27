@@ -1,6 +1,186 @@
 zabbix_export:
   templates:
     - discovery_rules:
+        - uuid: "7f7e6a5b5dd3494794af6cfcb8fd40ec"
+          name: "Sample coverage: filesystem_capacity discovery"
+          type: "DEPENDENT"
+          key: "powerstore.coverage.discovery[filesystem_capacity]"
+          delay: "0"
+          master_item:
+            key: "powerstore.file"
+          preprocessing:
+            - type: "JAVASCRIPT"
+              parameters:
+                - 'var lines = value.split("\n"); for (var i = 0; i < lines.length; i++) { if (/collector="filesystem_capacity"/.test(lines[i]) && (/^powerstore_object_sample_available\{/.test(lines[i]) || (/^powerstore_collector_success\{/.test(lines[i]) && /\}\s+1\s*$/.test(lines[i])))) return value; } throw "Sample coverage unavailable; preserve discovery";'
+            - type: "PROMETHEUS_TO_JSON"
+              parameters:
+                - 'powerstore_object_sample_available{IP="{$PST_IP}",collector="filesystem_capacity"}'
+          lld_macro_paths:
+            - lld_macro: "{#OBJECT_ID}"
+              path: '$.labels["object_id"]'
+            - lld_macro: "{#OBJECT_NAME}"
+              path: '$.labels["name"]'
+          item_prototypes:
+            - uuid: "9fa5808c8cd64c3cb426a26f9735b29e"
+              name: "filesystem_capacity [{#OBJECT_NAME}]: Sample available"
+              type: "DEPENDENT"
+              key: "powerstore.object.sample.available[filesystem_capacity,{#OBJECT_ID}]"
+              delay: "0"
+              description: "1 means a numeric sample was returned, including measured zero. 0 means the sample is absent. Check collector health for request/archive failures and freshness; this item retains its last value when coverage is unavailable."
+              master_item:
+                key: "powerstore.file"
+              preprocessing:
+                - type: "PROMETHEUS_PATTERN"
+                  parameters:
+                    - 'powerstore_object_sample_available{IP="{$PST_IP}",collector="filesystem_capacity",object_id="{#OBJECT_ID}"}'
+                    - "value"
+                    - ""
+                  error_handler: "DISCARD_VALUE"
+              tags:
+                - tag: "component"
+                  value: "monitoring"
+                - tag: "collector"
+                  value: "filesystem_capacity"
+            - uuid: "28d2c9642b7846f29e5db16ec959bec3"
+              name: "filesystem_capacity [{#OBJECT_NAME}]: Missing sample expected"
+              type: "DEPENDENT"
+              key: "powerstore.object.missing.expected[filesystem_capacity,{#OBJECT_ID}]"
+              delay: "0"
+              description: "1 means the sample is absent and explicitly allowed by exporter configuration. 0 means either a sample exists or its absence is unexpected; compare Sample available. Check collector health for request/archive failures and freshness."
+              master_item:
+                key: "powerstore.file"
+              preprocessing:
+                - type: "PROMETHEUS_PATTERN"
+                  parameters:
+                    - 'powerstore_object_missing_expected{IP="{$PST_IP}",collector="filesystem_capacity",object_id="{#OBJECT_ID}"}'
+                    - "value"
+                    - ""
+                  error_handler: "DISCARD_VALUE"
+              tags:
+                - tag: "component"
+                  value: "monitoring"
+                - tag: "collector"
+                  value: "filesystem_capacity"
+        - uuid: "d589ce19462d45a7a598498eaf90a062"
+          name: "Sample coverage: filesystem_performance discovery"
+          type: "DEPENDENT"
+          key: "powerstore.coverage.discovery[filesystem_performance]"
+          delay: "0"
+          master_item:
+            key: "powerstore.file"
+          preprocessing:
+            - type: "JAVASCRIPT"
+              parameters:
+                - 'var lines = value.split("\n"); for (var i = 0; i < lines.length; i++) { if (/collector="filesystem_performance"/.test(lines[i]) && (/^powerstore_object_sample_available\{/.test(lines[i]) || (/^powerstore_collector_success\{/.test(lines[i]) && /\}\s+1\s*$/.test(lines[i])))) return value; } throw "Sample coverage unavailable; preserve discovery";'
+            - type: "PROMETHEUS_TO_JSON"
+              parameters:
+                - 'powerstore_object_sample_available{IP="{$PST_IP}",collector="filesystem_performance"}'
+          lld_macro_paths:
+            - lld_macro: "{#OBJECT_ID}"
+              path: '$.labels["object_id"]'
+            - lld_macro: "{#OBJECT_NAME}"
+              path: '$.labels["name"]'
+          item_prototypes:
+            - uuid: "80f24f25013b46faa67f9e03fbdb49a4"
+              name: "filesystem_performance [{#OBJECT_NAME}]: Sample available"
+              type: "DEPENDENT"
+              key: "powerstore.object.sample.available[filesystem_performance,{#OBJECT_ID}]"
+              delay: "0"
+              description: "1 means a numeric sample was returned, including measured zero. 0 means the sample is absent. Check collector health for request/archive failures and freshness; this item retains its last value when coverage is unavailable."
+              master_item:
+                key: "powerstore.file"
+              preprocessing:
+                - type: "PROMETHEUS_PATTERN"
+                  parameters:
+                    - 'powerstore_object_sample_available{IP="{$PST_IP}",collector="filesystem_performance",object_id="{#OBJECT_ID}"}'
+                    - "value"
+                    - ""
+                  error_handler: "DISCARD_VALUE"
+              tags:
+                - tag: "component"
+                  value: "monitoring"
+                - tag: "collector"
+                  value: "filesystem_performance"
+            - uuid: "4eda8dda45c94f8399d22724e248289b"
+              name: "filesystem_performance [{#OBJECT_NAME}]: Missing sample expected"
+              type: "DEPENDENT"
+              key: "powerstore.object.missing.expected[filesystem_performance,{#OBJECT_ID}]"
+              delay: "0"
+              description: "1 means the sample is absent and explicitly allowed by exporter configuration. 0 means either a sample exists or its absence is unexpected; compare Sample available. Check collector health for request/archive failures and freshness."
+              master_item:
+                key: "powerstore.file"
+              preprocessing:
+                - type: "PROMETHEUS_PATTERN"
+                  parameters:
+                    - 'powerstore_object_missing_expected{IP="{$PST_IP}",collector="filesystem_performance",object_id="{#OBJECT_ID}"}'
+                    - "value"
+                    - ""
+                  error_handler: "DISCARD_VALUE"
+              tags:
+                - tag: "component"
+                  value: "monitoring"
+                - tag: "collector"
+                  value: "filesystem_performance"
+        - uuid: "739a9ac4fdd54f8ab33008089e489689"
+          name: "Sample coverage: volume_performance discovery"
+          type: "DEPENDENT"
+          key: "powerstore.coverage.discovery[volume_performance]"
+          delay: "0"
+          master_item:
+            key: "powerstore.volume"
+          preprocessing:
+            - type: "JAVASCRIPT"
+              parameters:
+                - 'var lines = value.split("\n"); for (var i = 0; i < lines.length; i++) { if (/collector="volume_performance"/.test(lines[i]) && (/^powerstore_object_sample_available\{/.test(lines[i]) || (/^powerstore_collector_success\{/.test(lines[i]) && /\}\s+1\s*$/.test(lines[i])))) return value; } throw "Sample coverage unavailable; preserve discovery";'
+            - type: "PROMETHEUS_TO_JSON"
+              parameters:
+                - 'powerstore_object_sample_available{IP="{$PST_IP}",collector="volume_performance"}'
+          lld_macro_paths:
+            - lld_macro: "{#OBJECT_ID}"
+              path: '$.labels["object_id"]'
+            - lld_macro: "{#OBJECT_NAME}"
+              path: '$.labels["name"]'
+          item_prototypes:
+            - uuid: "331dc5c5ee4946a68ce3c733034f2de1"
+              name: "volume_performance [{#OBJECT_NAME}]: Sample available"
+              type: "DEPENDENT"
+              key: "powerstore.object.sample.available[volume_performance,{#OBJECT_ID}]"
+              delay: "0"
+              description: "1 means a numeric sample was returned, including measured zero. 0 means the sample is absent. Check collector health for request/archive failures and freshness; this item retains its last value when coverage is unavailable."
+              master_item:
+                key: "powerstore.volume"
+              preprocessing:
+                - type: "PROMETHEUS_PATTERN"
+                  parameters:
+                    - 'powerstore_object_sample_available{IP="{$PST_IP}",collector="volume_performance",object_id="{#OBJECT_ID}"}'
+                    - "value"
+                    - ""
+                  error_handler: "DISCARD_VALUE"
+              tags:
+                - tag: "component"
+                  value: "monitoring"
+                - tag: "collector"
+                  value: "volume_performance"
+            - uuid: "627879fb688f4b978f5dcd7e9de83620"
+              name: "volume_performance [{#OBJECT_NAME}]: Missing sample expected"
+              type: "DEPENDENT"
+              key: "powerstore.object.missing.expected[volume_performance,{#OBJECT_ID}]"
+              delay: "0"
+              description: "1 means the sample is absent and explicitly allowed by exporter configuration. 0 means either a sample exists or its absence is unexpected; compare Sample available. Check collector health for request/archive failures and freshness."
+              master_item:
+                key: "powerstore.volume"
+              preprocessing:
+                - type: "PROMETHEUS_PATTERN"
+                  parameters:
+                    - 'powerstore_object_missing_expected{IP="{$PST_IP}",collector="volume_performance",object_id="{#OBJECT_ID}"}'
+                    - "value"
+                    - ""
+                  error_handler: "DISCARD_VALUE"
+              tags:
+                - tag: "component"
+                  value: "monitoring"
+                - tag: "collector"
+                  value: "volume_performance"
         - uuid: "0e0a835e2a664590b880f8a080c58ca1"
           name: "Replication Session Discovery"
           type: "DEPENDENT"

@@ -8,6 +8,126 @@ zabbix_export:
     templates:
         - description: Discovered source NAS host. Metrics route by stable NAS name identity across arrays. Collector health is conservative array-wide health. Import with the NAS discovery template; do not link manually to array hosts.
           discovery_rules:
+            - uuid: "7209676f3e0a47529e23831dce9adcc6"
+              name: "Sample coverage: filesystem_capacity discovery"
+              type: "DEPENDENT"
+              key: "powerstore.coverage.discovery[filesystem_capacity]"
+              delay: "0"
+              master_item:
+                key: "powerstore.file"
+              preprocessing:
+                - type: "JAVASCRIPT"
+                  parameters:
+                    - 'var lines = value.split("\n"); for (var i = 0; i < lines.length; i++) { if (/collector="filesystem_capacity"/.test(lines[i]) && (/^powerstore_object_sample_available\{/.test(lines[i]) || (/^powerstore_collector_success\{/.test(lines[i]) && /\}\s+1\s*$/.test(lines[i])))) return value; } throw "Sample coverage unavailable; preserve discovery";'
+                - type: "PROMETHEUS_TO_JSON"
+                  parameters:
+                    - 'powerstore_object_sample_available{collector="filesystem_capacity"}'
+              lld_macro_paths:
+                - lld_macro: "{#OBJECT_ID}"
+                  path: '$.labels["object_id"]'
+                - lld_macro: "{#OBJECT_NAME}"
+                  path: '$.labels["name"]'
+              item_prototypes:
+                - uuid: "8eebd199013345649ddaf9fd56a0629f"
+                  name: "filesystem_capacity [{#OBJECT_NAME}]: Sample available"
+                  type: "DEPENDENT"
+                  key: "powerstore.object.sample.available[filesystem_capacity,{#OBJECT_ID}]"
+                  delay: "0"
+                  description: "1 means a numeric sample was returned, including measured zero. 0 means the sample is absent. Check collector health for request/archive failures and freshness; this item retains its last value when coverage is unavailable."
+                  master_item:
+                    key: "powerstore.file"
+                  preprocessing:
+                    - type: "PROMETHEUS_PATTERN"
+                      parameters:
+                        - 'powerstore_object_sample_available{collector="filesystem_capacity",object_id="{#OBJECT_ID}"}'
+                        - "value"
+                        - ""
+                      error_handler: "DISCARD_VALUE"
+                  tags:
+                    - tag: "component"
+                      value: "monitoring"
+                    - tag: "collector"
+                      value: "filesystem_capacity"
+                - uuid: "df33bbf9950147f7b050a1fa56e09db5"
+                  name: "filesystem_capacity [{#OBJECT_NAME}]: Missing sample expected"
+                  type: "DEPENDENT"
+                  key: "powerstore.object.missing.expected[filesystem_capacity,{#OBJECT_ID}]"
+                  delay: "0"
+                  description: "1 means the sample is absent and explicitly allowed by exporter configuration. 0 means either a sample exists or its absence is unexpected; compare Sample available. Check collector health for request/archive failures and freshness."
+                  master_item:
+                    key: "powerstore.file"
+                  preprocessing:
+                    - type: "PROMETHEUS_PATTERN"
+                      parameters:
+                        - 'powerstore_object_missing_expected{collector="filesystem_capacity",object_id="{#OBJECT_ID}"}'
+                        - "value"
+                        - ""
+                      error_handler: "DISCARD_VALUE"
+                  tags:
+                    - tag: "component"
+                      value: "monitoring"
+                    - tag: "collector"
+                      value: "filesystem_capacity"
+            - uuid: "8f7484668e834801b5d5bc7f92cac476"
+              name: "Sample coverage: filesystem_performance discovery"
+              type: "DEPENDENT"
+              key: "powerstore.coverage.discovery[filesystem_performance]"
+              delay: "0"
+              master_item:
+                key: "powerstore.file"
+              preprocessing:
+                - type: "JAVASCRIPT"
+                  parameters:
+                    - 'var lines = value.split("\n"); for (var i = 0; i < lines.length; i++) { if (/collector="filesystem_performance"/.test(lines[i]) && (/^powerstore_object_sample_available\{/.test(lines[i]) || (/^powerstore_collector_success\{/.test(lines[i]) && /\}\s+1\s*$/.test(lines[i])))) return value; } throw "Sample coverage unavailable; preserve discovery";'
+                - type: "PROMETHEUS_TO_JSON"
+                  parameters:
+                    - 'powerstore_object_sample_available{collector="filesystem_performance"}'
+              lld_macro_paths:
+                - lld_macro: "{#OBJECT_ID}"
+                  path: '$.labels["object_id"]'
+                - lld_macro: "{#OBJECT_NAME}"
+                  path: '$.labels["name"]'
+              item_prototypes:
+                - uuid: "33850547db9a4b07a24d9fa79580b7ec"
+                  name: "filesystem_performance [{#OBJECT_NAME}]: Sample available"
+                  type: "DEPENDENT"
+                  key: "powerstore.object.sample.available[filesystem_performance,{#OBJECT_ID}]"
+                  delay: "0"
+                  description: "1 means a numeric sample was returned, including measured zero. 0 means the sample is absent. Check collector health for request/archive failures and freshness; this item retains its last value when coverage is unavailable."
+                  master_item:
+                    key: "powerstore.file"
+                  preprocessing:
+                    - type: "PROMETHEUS_PATTERN"
+                      parameters:
+                        - 'powerstore_object_sample_available{collector="filesystem_performance",object_id="{#OBJECT_ID}"}'
+                        - "value"
+                        - ""
+                      error_handler: "DISCARD_VALUE"
+                  tags:
+                    - tag: "component"
+                      value: "monitoring"
+                    - tag: "collector"
+                      value: "filesystem_performance"
+                - uuid: "b24b6c7b15d945d68c3956f324bfa9c5"
+                  name: "filesystem_performance [{#OBJECT_NAME}]: Missing sample expected"
+                  type: "DEPENDENT"
+                  key: "powerstore.object.missing.expected[filesystem_performance,{#OBJECT_ID}]"
+                  delay: "0"
+                  description: "1 means the sample is absent and explicitly allowed by exporter configuration. 0 means either a sample exists or its absence is unexpected; compare Sample available. Check collector health for request/archive failures and freshness."
+                  master_item:
+                    key: "powerstore.file"
+                  preprocessing:
+                    - type: "PROMETHEUS_PATTERN"
+                      parameters:
+                        - 'powerstore_object_missing_expected{collector="filesystem_performance",object_id="{#OBJECT_ID}"}'
+                        - "value"
+                        - ""
+                      error_handler: "DISCARD_VALUE"
+                  tags:
+                    - tag: "component"
+                      value: "monitoring"
+                    - tag: "collector"
+                      value: "filesystem_performance"
             - delay: "0"
               item_prototypes:
                 - delay: "0"

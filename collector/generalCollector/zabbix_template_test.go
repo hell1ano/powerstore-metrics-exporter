@@ -14,6 +14,73 @@ import (
 	"powerstore-metrics-exporter/collector/client"
 )
 
+func TestZabbixCoverageDiscovery(t *testing.T) {
+	for _, file := range []string{"zbx_export_templates_7.0.yaml", "zbx_export_nas_hosts_7.0.yaml"} {
+		data, err := os.ReadFile("../../templates/zabbix/" + file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var document map[string]interface{}
+		if err := yaml.Unmarshal(data, &document); err != nil {
+			t.Fatal(err)
+		}
+		root := document["zabbix_export"].(map[string]interface{})
+		template := root["templates"].([]interface{})[0].(map[string]interface{})
+		found := map[string]bool{}
+		for _, value := range template["discovery_rules"].([]interface{}) {
+			rule := value.(map[string]interface{})
+			key := rule["key"].(string)
+			if !strings.HasPrefix(key, "powerstore.coverage.discovery[") {
+				continue
+			}
+			collector := strings.TrimSuffix(strings.TrimPrefix(key, "powerstore.coverage.discovery["), "]")
+			found[collector] = true
+			master := "powerstore.file"
+			if collector == "volume_performance" {
+				master = "powerstore.volume"
+			}
+			if rule["type"] != "DEPENDENT" || rule["master_item"].(map[string]interface{})["key"] != master {
+				t.Fatal("coverage adds a poll or uses wrong master")
+			}
+			steps := rule["preprocessing"].([]interface{})
+			guard := steps[0].(map[string]interface{})["parameters"].([]interface{})[0].(string)
+			// Partial collections must still discover missing objects. Total failure
+			// must preserve discovery instead of treating absent diagnostics as removal.
+			if !strings.Contains(guard, "powerstore_object_sample_available") || !strings.Contains(guard, "throw") {
+				t.Fatal("missing coverage discovery guard")
+			}
+			selector := steps[1].(map[string]interface{})["parameters"].([]interface{})[0].(string)
+			if !strings.HasPrefix(selector, "powerstore_object_sample_available{") || !strings.Contains(selector, `collector="`+collector+`"`) {
+				t.Fatal("discovery must use coverage, including missing samples")
+			}
+			items := rule["item_prototypes"].([]interface{})
+			if len(items) != 2 {
+				t.Fatal("both coverage items required")
+			}
+			for _, v := range items {
+				item := v.(map[string]interface{})
+				if item["type"] != "DEPENDENT" || !strings.Contains(item["key"].(string), collector+",{#OBJECT_ID}]") {
+					t.Fatal("coverage identity must use collector and stable ID")
+				}
+				step := item["preprocessing"].([]interface{})[0].(map[string]interface{})
+				if step["error_handler"] != "DISCARD_VALUE" {
+					t.Fatal("absent diagnostics must not manufacture zero")
+				}
+			}
+		}
+		want := 2
+		if file == "zbx_export_templates_7.0.yaml" {
+			want = 3
+			if !found["volume_performance"] {
+				t.Fatal("missing volume coverage")
+			}
+		}
+		if len(found) != want || !found["filesystem_capacity"] || !found["filesystem_performance"] {
+			t.Fatalf("wrong coverage collectors: %v", found)
+		}
+	}
+}
+
 // Check selectors against actual exporter descriptors, not a duplicate list of
 // expected metric names. This catches both the old filesystem names and NAS label bug.
 func TestZabbix7MetricContract(t *testing.T) {
@@ -379,7 +446,7 @@ func TestNASHostTemplateIdentityAndReferences(t *testing.T) {
 		t.Error("unstable host identity or interface dependency")
 	}
 	child := templates[0].(map[string]interface{})
-	if len(child["discovery_rules"].([]interface{})) != 4 {
+	if len(child["discovery_rules"].([]interface{})) != 6 {
 		t.Error("NAS/filesystem discovery coverage changed")
 	}
 }
