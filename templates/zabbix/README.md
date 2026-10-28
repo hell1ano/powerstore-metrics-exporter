@@ -5,6 +5,7 @@
 | `zbx_export_templates.yaml` | Template API Storage Device EMC PowerStore Exporter | Existing Zabbix 6.0 export, retained unchanged. |
 | `zbx_export_templates_7.0.yaml` | Dell PowerStore by exporter HTTP | New Zabbix 7.0 export with collection health, freshness, corrected file/NAS mappings and TLS configuration. |
 | `zbx_export_nas_hosts_7.0.yaml` | Dell PowerStore NAS discovery by exporter HTTP + Dell PowerStore NAS by exporter HTTP | One exporter-wide discovery parent creates a host per eligible source NAS, with NAS and filesystem items. |
+| `dell_powerstore_zabbix_v1.0.0_rc1.yaml` | Dell PowerStore by exporter HTTP + Dell PowerStore NAS by exporter HTTP | Alternative integrated Zabbix 7.0 bundle: per-array discovery creates NAS hosts, with filesystem and replication monitoring. Release candidate; pilot validation required. |
 
 The 7.0 templates target Zabbix 7.0, including 7.0.24. Their YAML, references, UUIDs,
 metric names and labels are tested in the repository. A live import and end-to-end
@@ -23,6 +24,8 @@ Deploy the matching updated exporter first and set periodic
 Set `{$POWERSTORE.EXPORTER.URL}` on the discovery parent; children inherit it.
 See [NAS host setup, migration and failover checks](NAS-hosts.md). Plan retirement
 of overlapping array NAS/filesystem items after validating the child hosts.
+
+For the alternative integrated bundle, see [Integrated NAS discovery template](#additional-zabbix-template-dell-powerstore-with-nas-host-discovery-v100-rc1) below. Its NAS discovery is per array, unlike the exporter-wide NAS discovery bundle described above. Do not link overlapping templates to the same host.
 
 ## Array template setup
 
@@ -230,3 +233,28 @@ Missing filesystem rows are not converted to zeros by this template, so filesyst
 without performance samples cannot qualify. The three accepted missing-data
 filesystems require actual zero samples or a separate exporter zero-fill change
 before this detector can identify them. Capacity data is unaffected.
+
+---
+
+## Additional Zabbix template: Dell PowerStore with NAS host discovery (v1.0.0-rc1)
+
+This repository also offers [`dell_powerstore_zabbix_v1.0.0_rc1.yaml`](dell_powerstore_zabbix_v1.0.0_rc1.yaml), an **alternative** Zabbix 7.0 template for the PowerStore metrics exporter. It is intended to be imported **instead of**, not automatically alongside, other templates monitoring the same PowerStore resources; otherwise duplicate items and alerts may occur. Existing templates and their instructions remain unchanged.
+
+The YAML contains two templates with names that overlap existing templates; use a separate test installation or a deliberate migration plan, not a blind import over existing templates. The templates are: **Dell PowerStore by exporter HTTP** for the array host and **Dell PowerStore NAS by exporter HTTP** for NAS hosts automatically created through discovery. The NAS hosts monitor NAS health, performance, their filesystems and NAS/filesystem replication. The array host monitors array health, capacity, appliance latency, Ethernet/FC ports, volumes, volume groups, and block replication. Collector health is monitored on the array host.
+
+### Installation and configuration
+
+1. Install and configure the PowerStore metrics exporter using the existing exporter instructions in this repository. Verify the `/metrics` and discovery endpoints are accessible to Zabbix.
+2. Import `dell_powerstore_zabbix_v1.0.0_rc1.yaml` into Zabbix 7.0. Link **Dell PowerStore by exporter HTTP** to each array host. The NAS template is linked through host discovery; do not manually link it to the array host.
+3. Review and configure `{$POWERSTORE.EXPORTER.URL}`, `{$PST_IP}`, and `{$POWERSTORE.NAME}` for the environment. Check other template macros and discovery settings in Zabbix before enabling alert actions.
+4. Confirm that discovered NAS hosts, filesystems, replication sessions and collector-health items populate correctly and that no unexpected unsupported items or duplicate alerts appear.
+
+### Known limitations and release status
+
+- The **Zero IOPS (24h)** trigger prototypes for volumes and filesystems are **disabled by default**. A zero reading can be normal or reflect substituted missing performance data.
+- Configured RPO and available sync timestamps are informational; **actual RPO compliance and exact counts of missed asynchronous synchronizations are not verified**.
+- Automatic disabling of replication-destination NAS hosts and failover ownership handling are **not implemented**. NAS/filesystem replication dependencies need further testing. Some replication item names can show resource IDs instead of friendly names.
+- This is a **release candidate**: the YAML has been structurally checked, but an actual Zabbix 7.0 import and runtime validation have **not** been performed.
+- **Migration warning:** the public template names and NAS technical host naming differ from Evaluation builds. Do not assume in-place migration is safe; test on a separate Zabbix environment and back up existing templates first.
+
+The exporter is a separate project. Follow the repository's existing exporter documentation for its installation and supported PowerStore versions. Confirm licensing and attribution before publishing this new file.
